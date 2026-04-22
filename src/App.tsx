@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Download, Link2, Plus, Upload, X } from "lucide-react"
+import { Download, Link2, Upload, X } from "lucide-react"
 import { Button } from "./components/ui/button"
 import {
   Drawer,
@@ -152,12 +152,12 @@ function App() {
     setSelectedTaskId(nextId)
   }
 
-  const handleNewSubtask = () => {
-    if (!selectedTaskId) return
+  const handleNewSubtaskFor = (parentId: number) => {
     const nextId = getNextTaskId(project)
-    const start = selectedTask?.StartDate ?? new Date().toISOString()
+    const parent = flatTasks.find((row) => row.task.TaskID === parentId)?.task
+    const start = parent?.StartDate ?? new Date().toISOString()
     const child = createTask(nextId, `${t("defaultSubtaskName")} ${nextId}`, start)
-    setProject((current) => ({ ...current, data: addSubtask(current.data, selectedTaskId, child) }))
+    setProject((current) => ({ ...current, data: addSubtask(current.data, parentId, child) }))
     setSelectedTaskId(nextId)
   }
 
@@ -217,10 +217,6 @@ function App() {
           />
         </div>
         <Separator orientation="vertical" className="h-5" />
-        <Button size="sm" variant="secondary" onClick={handleNewSubtask} disabled={!selectedTaskId}>
-          <Plus />
-          <span className="hidden sm:inline">{t("subtask")}</span>
-        </Button>
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           <Button size="sm" variant="outline" onClick={handleImportClick}>
             <Upload />
@@ -247,6 +243,7 @@ function App() {
           onSelect={setSelectedTaskId}
           onOpenDetail={handleSelect}
           onCreateTask={handleNewTask}
+          onCreateSubtask={handleNewSubtaskFor}
           onCommit={handleCommit}
           onDelete={handleDelete}
           onReorder={handleReorder}

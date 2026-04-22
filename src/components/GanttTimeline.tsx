@@ -24,6 +24,7 @@ interface Props {
   onSelect: (id: number) => void
   onOpenDetail: (id: number) => void
   onCreateTask: () => void
+  onCreateSubtask: (parentId: number) => void
   onCommit: (updater: (project: GanttProject) => GanttProject) => void
   onDelete: (id: number) => void
   onReorder: (draggedId: number, targetId: number, position: "before" | "after") => void
@@ -36,6 +37,7 @@ export function GanttTimeline({
   onSelect,
   onOpenDetail,
   onCreateTask,
+  onCreateSubtask,
   onCommit,
   onDelete,
   onReorder,
@@ -45,7 +47,7 @@ export function GanttTimeline({
   const [viewportWidth, setViewportWidth] = useState(0)
   const [dragState, setDragState] = useState<DragState | null>(null)
   const dragRef = useRef<DragState | null>(null)
-  const rowRefs = useRef<Map<number, HTMLButtonElement>>(new Map())
+  const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map())
 
   const LABEL_WIDTH = viewportWidth > 0 && viewportWidth < 640 ? 120 : 240
 
@@ -192,19 +194,26 @@ export function GanttTimeline({
               {/* name cell */}
               <ContextMenu>
                 <ContextMenuTrigger asChild>
-                  <button
+                  <div
                     ref={(el) => {
                       if (el) rowRefs.current.set(task.TaskID, el)
                       else rowRefs.current.delete(task.TaskID)
                     }}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
                       if (!dragRef.current) onOpenDetail(task.TaskID)
                     }}
-                    className={`sticky left-0 z-10 flex h-10 min-w-0 items-center gap-1 border-b bg-card text-left text-sm transition-opacity ${
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        if (!dragRef.current) onOpenDetail(task.TaskID)
+                      }
+                    }}
+                    className={`group sticky left-0 z-10 flex h-10 min-w-0 items-center gap-1 border-b bg-card text-left text-sm transition-opacity ${
                       selectedTaskId === task.TaskID ? "bg-accent" : "hover:bg-muted/40"
                     } ${isDragged ? "opacity-40" : ""}`}
-                    style={{ paddingLeft: `${8 + level * 12}px`, paddingRight: "8px" }}
+                    style={{ paddingLeft: `${8 + level * 12}px`, paddingRight: "28px" }}
                   >
                     {/* drop indicators */}
                     {isDropTarget && dragState.dropPosition === "before" && (
@@ -229,7 +238,24 @@ export function GanttTimeline({
                     </div>
 
                     <span className="truncate">{task.TaskName}</span>
-                  </button>
+
+                    <button
+                      type="button"
+                      aria-label={t("subtask")}
+                      title={t("subtask")}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-muted/60 hover:text-foreground group-hover:opacity-100"
+                      onMouseDown={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onCreateSubtask(task.TaskID)
+                      }}
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
                   <ContextMenuItem

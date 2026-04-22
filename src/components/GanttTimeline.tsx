@@ -41,11 +41,12 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
         </div>
         {timelineDays.map((day) => {
           const isMonday = day.getUTCDay() === 1
+          const isWeekend = day.getUTCDay() === 0 || day.getUTCDay() === 6
           return (
             <div
               key={day.toISOString()}
               className={`border-b border-l p-1 text-center text-[10px] text-muted-foreground ${
-                isMonday ? "bg-muted/40 font-medium" : ""
+                isWeekend ? "bg-muted/60 font-medium" : isMonday ? "bg-muted/40 font-medium" : ""
               }`}
             >
               {new Intl.DateTimeFormat("es-ES", {
@@ -80,6 +81,18 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
                 className="relative h-10 border-b"
                 style={{ gridColumn: `2 / span ${timelineDays.length}` }}
               >
+                {/* weekend shading */}
+                {timelineDays.map((day, i) => {
+                  const isWeekend = day.getUTCDay() === 0 || day.getUTCDay() === 6
+                  if (!isWeekend) return null
+                  return (
+                    <div
+                      key={i}
+                      className="absolute top-0 h-full bg-muted/40 pointer-events-none"
+                      style={{ left: `${i * dayWidth}px`, width: `${dayWidth}px` }}
+                    />
+                  )
+                })}
                 {/* today line */}
                 {(() => {
                   const todayOffset = dayOffset(timelineStart, new Date().toISOString())

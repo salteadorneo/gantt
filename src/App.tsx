@@ -86,11 +86,15 @@ function App() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState("")
   const [shareCopied, setShareCopied] = useState(false)
+  const [isDraggingFile, setIsDraggingFile] = useState(false)
+  const [toastError, setToastError] = useState("")
   const [importError, setImportError] = useState("")
   const [projectName, setProjectName] = useState(project.name ?? "")
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const nameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const shareTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dragCounterRef = useRef(0)
 
   const handleNameChange = (value: string) => {
     setProjectName(value)
@@ -125,8 +129,37 @@ function App() {
   useEffect(() => {
     return () => {
       if (shareTimerRef.current) clearTimeout(shareTimerRef.current)
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     }
   }, [])
+
+  const showImportToastError = (message: string) => {
+    setToastError(message)
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => {
+      setToastError("")
+    }, 3000)
+  }
+
+  const importGanttFile = async (file: File): Promise<boolean> => {
+    const isValidExtension = file.name.toLowerCase().endsWith(".gantt")
+    if (!isValidExtension) {
+      showImportToastError(t("invalidGanttFile"))
+      return false
+    }
+
+    try {
+      const raw = await file.text()
+      const imported = projectFromImport(raw)
+      setProject({ ...imported, data: imported.data.map(normalizeTask) })
+      setProjectName(imported.name ?? "")
+      setImportError("")
+      return true
+    } catch {
+      showImportToastError(t("importError"))
+      return false
+    }
+  }
 
   const handleCommit = (updater: (p: GanttProject) => GanttProject) => {
     setProject(updater)
@@ -197,17 +230,11 @@ function App() {
   const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
-    try {
-      const raw = await file.text()
-      const imported = projectFromImport(raw)
-      setProject({ ...imported, data: imported.data.map(normalizeTask) })
-      setProjectName(imported.name ?? "")
-      setImportError("")
-    } catch {
+    const imported = await importGanttFile(file)
+    if (!imported) {
       setImportError(t("importError"))
-    } finally {
-      event.target.value = ""
     }
+    event.target.value = ""
   }
 
   const handleCopyShareLink = async () => {
@@ -224,8 +251,61 @@ function App() {
     }
   }
 
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!event.dataTransfer.types.includes("Files")) return
+    event.preventDefault()
+    dragCounterRef.current += 1
+    setIsDraggingFile(true)
+  }
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!event.dataTransfer.types.includes("Files")) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = "copy"
+  }
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!event.dataTransfer.types.includes("Files")) return
+    event.preventDefault()
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1)
+    if (dragCounterRef.current === 0) {
+      setIsDraggingFile(false)
+    }
+  }
+
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    if (!event.dataTransfer.types.includes("Files")) return
+    event.preventDefault()
+    dragCounterRef.current = 0
+    setIsDraggingFile(false)
+
+    const file = event.dataTransfer.files?.[0]
+    if (!file) return
+    await importGanttFile(file)
+  }
+
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+    <div
+      className="relative flex h-screen flex-col overflow-hidden bg-background text-foreground"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDraggingFile && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+          <div className="rounded-lg border border-primary/40 bg-card px-6 py-4 text-sm font-medium text-foreground shadow-lg">
+            {t("dropToImport")}
+          </div>
+        </div>
+      )}
+
+      {toastError && (
+        <div className="pointer-events-none absolute bottom-4 right-4 z-50 max-w-sm rounded-md border border-destructive/30 bg-card px-4 py-3 text-sm text-destructive shadow-lg">
+          {toastError}
+        </div>
+      )}
+
       {/* Toolbar */}
       <header className="flex shrink-0 items-center gap-1.5 border-b bg-card px-3 py-2 sm:gap-2 sm:px-4">
         <div className="relative mr-1 sm:mr-2 shrink-0">

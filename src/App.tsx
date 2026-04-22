@@ -59,6 +59,18 @@ function createTask(taskId: number, label: string, startDateIso: string): GanttT
   }
 }
 
+function normalizeExportFileName(value: string): string {
+  const withoutAccents = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+  const normalized = withoutAccents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+
+  return normalized || "gantt"
+}
+
 function App() {
   const isMobile = useIsMobile()
   const DAY_WIDTH = isMobile ? 32 : 44
@@ -164,9 +176,10 @@ function App() {
     const payload = JSON.stringify(project, null, 2)
     const blob = new Blob([payload], { type: "application/json" })
     const url = URL.createObjectURL(blob)
+    const exportName = normalizeExportFileName(projectName || project.name || t("appTitle"))
     const a = document.createElement("a")
     a.href = url
-    a.download = `gantt-${Date.now()}.gantt`
+    a.download = `${exportName}.gantt`
     a.click()
     URL.revokeObjectURL(url)
   }

@@ -25,6 +25,7 @@ import {
   normalizeTask,
   projectFromImport,
   removeTaskFromTree,
+  reorderTasksInTree,
   saveProjectToLocalStorage,
   saveProjectToUrl,
   toDateInput,
@@ -118,6 +119,13 @@ function App() {
     setProject((current) => ({
       ...current,
       data: updateTaskInTree(current.data, selectedTaskId, (task) => normalizeTask(updater(task))),
+    }))
+  }
+
+  const handleReorder = (draggedId: number, targetId: number, position: "before" | "after") => {
+    setProject((current) => ({
+      ...current,
+      data: reorderTasksInTree(current.data, draggedId, targetId, position),
     }))
   }
 
@@ -220,6 +228,7 @@ function App() {
           onOpenDetail={handleSelect}
           onCommit={handleCommit}
           onDelete={handleDelete}
+          onReorder={handleReorder}
           dayWidth={DAY_WIDTH}
         />
       </main>

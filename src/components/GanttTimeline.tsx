@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { GripVertical } from "lucide-react"
 
 import { DAY_MS, buildTimelineDays, dayOffset, flattenTasks } from "../lib/gantt"
 import { t } from "../lib/i18n"
@@ -11,6 +12,12 @@ import {
   ContextMenuTrigger,
 } from "./ui/context-menu"
 
+interface DragState {
+  draggedId: number
+  dragOverId: number | null
+  dropPosition: "before" | "after"
+}
+
 interface Props {
   project: GanttProject
   selectedTaskId: number | null
@@ -18,12 +25,16 @@ interface Props {
   onOpenDetail: (id: number) => void
   onCommit: (updater: (project: GanttProject) => GanttProject) => void
   onDelete: (id: number) => void
+  onReorder: (draggedId: number, targetId: number, position: "before" | "after") => void
   dayWidth?: number
 }
 
-export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail, onCommit, onDelete, dayWidth = 44 }: Props) {
+export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail, onCommit, onDelete, onReorder, dayWidth = 44 }: Props) {
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const [viewportWidth, setViewportWidth] = useState(0)
+  const [dragState, setDragState] = useState<DragState | null>(null)
+  const dragRef = useRef<DragState | null>(null)
+  const rowRefs = useRef<Map<number, HTMLButtonElement>>(new Map())
 
   const LABEL_WIDTH = viewportWidth > 0 && viewportWidth < 640 ? 120 : 240
 
@@ -45,18 +56,62 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
     return () => resizeObserver.disconnect()
   }, [])
 
+  // Global drag listeners — only attached while dragging
+  useEffect(() => {
+    if (!dragState) return
+
+    document.body.style.cursor = "grabbing"
+    document.body.style.userSelect = "none"
+
+    const onMouseMove = (e: MouseEvent) => {
+      let dragOverId: number | null = null
+      let dropPosition: "before" | "after" = "after"
+
+      for (const [id, el] of rowRefs.current) {
+        const rect = el.getBoundingClientRect()
+        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          dragOverId = id
+          dropPosition = e.clientY < rect.top + rect.height / 2 ? "before" : "after"
+          break
+        }
+      }
+
+      // Update ref synchronously so onMouseUp reads latest values
+      if (dragRef.current) {
+        dragRef.current = { ...dragRef.current, dragOverId, dropPosition }
+      }
+      setDragState((prev) => (prev ? { ...prev, dragOverId, dropPosition } : null))
+    }
+
+    const onMouseUp = () => {
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+      const state = dragRef.current
+      if (state?.dragOverId != null && state.dragOverId !== state.draggedId) {
+        onReorder(state.draggedId, state.dragOverId, state.dropPosition)
+      }
+      setDragState(null)
+      dragRef.current = null
+    }
+
+    document.addEventListener("mousemove", onMouseMove)
+    document.addEventListener("mouseup", onMouseUp)
+    return () => {
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+      document.removeEventListener("mousemove", onMouseMove)
+      document.removeEventListener("mouseup", onMouseUp)
+    }
+  }, [dragState?.draggedId, onReorder])
+
   const flatTasks = flattenTasks(project.data)
   const timelineDays = useMemo(() => {
     const baseTimelineDays = buildTimelineDays(project)
-    if (!baseTimelineDays.length) {
-      return []
-    }
+    if (!baseTimelineDays.length) return []
 
     const visibleTimelineWidth = Math.max(0, viewportWidth - LABEL_WIDTH)
     const minVisibleDays = Math.max(1, Math.floor(visibleTimelineWidth / dayWidth))
-    if (baseTimelineDays.length >= minVisibleDays) {
-      return baseTimelineDays
-    }
+    if (baseTimelineDays.length >= minVisibleDays) return baseTimelineDays
 
     const missingDays = minVisibleDays - baseTimelineDays.length
     const prependDays = Math.floor(missingDays / 2)
@@ -118,6 +173,8 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
         {flatTasks.map(({ task, level }) => {
           const left = dayOffset(timelineStart, task.StartDate)
           const isMilestone = task.Duration === 0
+          const isDragged = dragState?.draggedId === task.TaskID
+          const isDropTarget = dragState?.dragOverId === task.TaskID && !isDragged
 
           return (
             <div key={task.TaskID} className="contents">
@@ -125,13 +182,41 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
               <ContextMenu>
                 <ContextMenuTrigger asChild>
                   <button
+                    ref={(el) => {
+                      if (el) rowRefs.current.set(task.TaskID, el)
+                      else rowRefs.current.delete(task.TaskID)
+                    }}
                     type="button"
-                    onClick={() => onOpenDetail(task.TaskID)}
-                    className={`sticky left-0 z-10 flex h-10 min-w-0 items-center border-b bg-card px-3 text-left text-sm ${
+                    onClick={() => {
+                      if (!dragRef.current) onOpenDetail(task.TaskID)
+                    }}
+                    className={`sticky left-0 z-10 flex h-10 min-w-0 items-center gap-1 border-b bg-card text-left text-sm transition-opacity ${
                       selectedTaskId === task.TaskID ? "bg-accent" : "hover:bg-muted/40"
-                    }`}
-                    style={{ paddingLeft: `${12 + level * 12}px` }}
+                    } ${isDragged ? "opacity-40" : ""}`}
+                    style={{ paddingLeft: `${8 + level * 12}px`, paddingRight: "8px" }}
                   >
+                    {/* drop indicators */}
+                    {isDropTarget && dragState.dropPosition === "before" && (
+                      <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary z-50 pointer-events-none" />
+                    )}
+                    {isDropTarget && dragState.dropPosition === "after" && (
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary z-50 pointer-events-none" />
+                    )}
+
+                    {/* grip handle */}
+                    <div
+                      className="shrink-0 flex items-center text-muted-foreground/30 hover:text-muted-foreground/70 cursor-grab"
+                      onMouseDown={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                        const state: DragState = { draggedId: task.TaskID, dragOverId: null, dropPosition: "after" }
+                        dragRef.current = state
+                        setDragState(state)
+                      }}
+                    >
+                      <GripVertical size={13} />
+                    </div>
+
                     <span className="truncate">{task.TaskName}</span>
                   </button>
                 </ContextMenuTrigger>
@@ -150,6 +235,14 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
                 className="relative h-10 border-b"
                 style={{ gridColumn: `2 / span ${timelineDays.length}` }}
               >
+                {/* drop indicators (spanning the bar area) */}
+                {isDropTarget && dragState.dropPosition === "before" && (
+                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary z-50 pointer-events-none" />
+                )}
+                {isDropTarget && dragState.dropPosition === "after" && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary z-50 pointer-events-none" />
+                )}
+
                 {/* weekend shading */}
                 {timelineDays.map((day, i) => {
                   const isWeekend = day.getUTCDay() === 0 || day.getUTCDay() === 6
@@ -162,6 +255,7 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
                     />
                   )
                 })}
+
                 {/* today line */}
                 {(() => {
                   const todayOffset = dayOffset(timelineStart, new Date().toISOString())
@@ -174,21 +268,22 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
                 })()}
 
                 {isMilestone ? (
-                  /* Diamond milestone */
                   <div
-                    className="absolute top-1/2 -translate-y-1/2 size-4 rotate-45 rounded-sm bg-amber-500"
+                    className={`absolute top-1/2 -translate-y-1/2 size-4 rotate-45 rounded-sm bg-amber-500 ${isDragged ? "opacity-40" : ""}`}
                     style={{ left: `${left * dayWidth + dayWidth / 2 - 8}px` }}
                     title={`${task.TaskName} (${t("milestone")})`}
                   />
                 ) : (
-                  <GanttBar
-                    task={task}
-                    timelineStart={timelineStart}
-                    dayWidth={dayWidth}
-                    selected={selectedTaskId === task.TaskID}
-                    onSelect={onSelect}
-                    onCommit={onCommit}
-                  />
+                  <div className={isDragged ? "opacity-40" : ""}>
+                    <GanttBar
+                      task={task}
+                      timelineStart={timelineStart}
+                      dayWidth={dayWidth}
+                      selected={selectedTaskId === task.TaskID}
+                      onSelect={onSelect}
+                      onCommit={onCommit}
+                    />
+                  </div>
                 )}
               </div>
             </div>

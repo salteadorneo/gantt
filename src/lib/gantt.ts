@@ -157,6 +157,30 @@ export function addSiblingTask(tasks: GanttTask[], newTask: GanttTask): GanttTas
   return [...tasks, newTask]
 }
 
+export function reorderTasksInTree(
+  tasks: GanttTask[],
+  draggedId: number,
+  targetId: number,
+  position: "before" | "after",
+): GanttTask[] {
+  const draggedIdx = tasks.findIndex((t) => t.TaskID === draggedId)
+  const targetIdx = tasks.findIndex((t) => t.TaskID === targetId)
+
+  if (draggedIdx !== -1 && targetIdx !== -1) {
+    const result = [...tasks]
+    const [dragged] = result.splice(draggedIdx, 1)
+    const adjustedTarget = targetIdx > draggedIdx ? targetIdx - 1 : targetIdx
+    result.splice(position === "before" ? adjustedTarget : adjustedTarget + 1, 0, dragged)
+    return result
+  }
+
+  return tasks.map((task) =>
+    task.subtasks?.length
+      ? { ...task, subtasks: reorderTasksInTree(task.subtasks, draggedId, targetId, position) }
+      : task,
+  )
+}
+
 export function addSubtask(tasks: GanttTask[], parentId: number, child: GanttTask): GanttTask[] {
   return tasks.map((task) => {
     if (task.TaskID === parentId) {

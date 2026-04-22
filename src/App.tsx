@@ -275,6 +275,9 @@ function App() {
                     min={0}
                     max={100}
                     value={selectedTask.Progress}
+                    onPointerDownCapture={(e) => e.stopPropagation()}
+                    onMouseDownCapture={(e) => e.stopPropagation()}
+                    onTouchStartCapture={(e) => e.stopPropagation()}
                     onChange={(e) => {
                       const safe = Math.max(0, Math.min(100, Number(e.target.value)))
                       updateSelectedTask((t) => ({ ...t, Progress: safe }))

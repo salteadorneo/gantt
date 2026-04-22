@@ -5,6 +5,17 @@ import { DAY_MS, buildTimelineDays, dayOffset, flattenTasks } from "../lib/gantt
 import { t } from "../lib/i18n"
 import type { GanttProject } from "../types/gantt"
 import { GanttBar } from "./GanttBar"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "./ui/alert-dialog"
 
 interface DragState {
   draggedId: number
@@ -256,22 +267,37 @@ export function GanttTimeline({
                   >
                     <Plus size={14} />
                   </button>
-                  <button
-                    type="button"
-                    aria-label={t("deleteTask")}
-                    title={t("deleteTask")}
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-                    onMouseDown={(e) => {
-                      e.stopPropagation()
-                      e.preventDefault()
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDelete(task.TaskID)
-                    }}
-                  >
-                    <X size={14} />
-                  </button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={t("deleteTask")}
+                        title={t("deleteTask")}
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
+                        onMouseDown={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault()
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <X size={14} />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>{t("confirmDeleteTitle")}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {t("confirmDeleteDescription")}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onDelete(task.TaskID)}>
+                          {t("confirm")}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
 

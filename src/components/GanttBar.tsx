@@ -12,7 +12,7 @@ interface Props {
   onCommit: (updater: (project: GanttProject) => GanttProject) => void
 }
 
-type DragType = "move" | "resize"
+type DragType = "move" | "resize" | "resize-left"
 
 interface DragState {
   type: DragType
@@ -47,12 +47,20 @@ export function GanttBar({ task, timelineStart, dayWidth, selected, onSelect, on
             StartDate: new Date(newStartMs).toISOString(),
             EndDate: new Date(newEndMs).toISOString(),
           })
-        } else {
+        } else if (type === "resize") {
           const newEndMs = new Date(t.EndDate).getTime() + daysDelta * DAY_MS
           if (newEndMs <= new Date(t.StartDate).getTime()) return t
           return normalizeTask({
             ...t,
             EndDate: new Date(newEndMs).toISOString(),
+          })
+        } else {
+          // resize-left
+          const newStartMs = new Date(t.StartDate).getTime() + daysDelta * DAY_MS
+          if (newStartMs >= new Date(t.EndDate).getTime()) return t
+          return normalizeTask({
+            ...t,
+            StartDate: new Date(newStartMs).toISOString(),
           })
         }
       }),
@@ -89,8 +97,15 @@ export function GanttBar({ task, timelineStart, dayWidth, selected, onSelect, on
       if (drag.type === "move") {
         const newLeft = Math.max(2, drag.initialLeft + daysDelta * dayWidth)
         drag.barEl.style.left = `${newLeft}px`
-      } else {
+      } else if (drag.type === "resize") {
         const newWidth = Math.max(dayWidth - 4, drag.initialWidth + daysDelta * dayWidth)
+        drag.barEl.style.width = `${newWidth}px`
+      } else {
+        // resize-left
+        const clampedDelta = Math.min(daysDelta, Math.floor((drag.initialWidth - (dayWidth - 4)) / dayWidth))
+        const newLeft = drag.initialLeft + clampedDelta * dayWidth
+        const newWidth = drag.initialWidth - clampedDelta * dayWidth
+        drag.barEl.style.left = `${newLeft}px`
         drag.barEl.style.width = `${newWidth}px`
       }
     }
@@ -143,7 +158,16 @@ export function GanttBar({ task, timelineStart, dayWidth, selected, onSelect, on
         </span>
       )}
 
-      {/* resize handle */}
+      {/* resize handle left */}
+      <div
+        className="absolute left-0 top-0 h-full w-2 cursor-ew-resize hover:bg-white/30 rounded-l-md"
+        onMouseDown={(e) => {
+          onSelect(task.TaskID)
+          startDrag(e, "resize-left")
+        }}
+      />
+
+      {/* resize handle right */}
       <div
         className="absolute right-0 top-0 h-full w-2 cursor-ew-resize hover:bg-white/30 rounded-r-md"
         onMouseDown={(e) => {

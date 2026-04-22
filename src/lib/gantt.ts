@@ -19,7 +19,7 @@ export function createDefaultProject(): GanttProject {
         resources: [],
         Progress: 40,
         color: "",
-        info: "<p><br></p>",
+        info: "",
         DurationUnit: "day",
         subtasks: [
           {
@@ -32,7 +32,7 @@ export function createDefaultProject(): GanttProject {
             resources: [],
             Progress: 60,
             color: "121",
-            info: "<p><br></p>",
+            info: "",
             DurationUnit: "day",
           },
         ],

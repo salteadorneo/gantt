@@ -54,7 +54,7 @@ function createTask(taskId: number, label: string, startDateIso: string): GanttT
     resources: [],
     Progress: 0,
     color: "",
-    info: "<p><br></p>",
+    info: "",
     DurationUnit: "day",
   }
 }

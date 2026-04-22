@@ -75,7 +75,17 @@ function App() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState("")
   const [importError, setImportError] = useState("")
+  const [projectName, setProjectName] = useState(project.name ?? "")
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const nameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleNameChange = (value: string) => {
+    setProjectName(value)
+    if (nameTimerRef.current) clearTimeout(nameTimerRef.current)
+    nameTimerRef.current = setTimeout(() => {
+      setProject((p) => ({ ...p, name: value }))
+    }, 400)
+  }
 
   const flatTasks = useMemo(() => flattenTasks(project.data), [project])
 
@@ -171,6 +181,7 @@ function App() {
       const raw = await file.text()
       const imported = projectFromImport(raw)
       setProject({ ...imported, data: imported.data.map(normalizeTask) })
+      setProjectName(imported.name ?? "")
       setImportError("")
     } catch {
       setImportError(t("importError"))
@@ -192,7 +203,19 @@ function App() {
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       {/* Toolbar */}
       <header className="flex shrink-0 items-center gap-1.5 border-b bg-card px-3 py-2 sm:gap-2 sm:px-4">
-        <span className="mr-1 text-sm font-semibold tracking-tight sm:mr-2">{t("appTitle")}</span>
+        <div className="relative mr-1 sm:mr-2 shrink-0">
+          <span aria-hidden className="invisible block whitespace-pre text-sm font-semibold tracking-tight px-1 min-w-10">
+            {projectName || t("appTitle")}
+          </span>
+          <input
+            type="text"
+            value={projectName}
+            placeholder={t("appTitle")}
+            onChange={(e) => handleNameChange(e.target.value)}
+            onFocus={(e) => e.target.select()}
+            className="absolute inset-0 w-full bg-transparent text-sm font-semibold tracking-tight rounded-sm px-1 border-0 outline-none shadow-none hover:bg-muted/50 focus:bg-accent/40 transition-colors cursor-default focus:cursor-text placeholder:text-foreground"
+          />
+        </div>
         <Separator orientation="vertical" className="h-5" />
         <Button size="sm" onClick={handleNewTask}>
           <Plus />

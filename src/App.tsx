@@ -322,34 +322,11 @@ function App() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">{t("labelDuration")}</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={selectedTask.Duration}
-                    readOnly
-                    className="bg-muted/50"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">{t("labelPredecessor")}</label>
-                  <Input
-                    value={selectedTask.Predecessor ?? ""}
-                    onChange={(e) =>
-                      updateSelectedTask((t) => ({ ...t, Predecessor: e.target.value }))
-                    }
-                    placeholder={t("placeholderPredecessor")}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">{t("labelNotes")}</label>
                   <Textarea
                     value={selectedTask.info}
                     onChange={(e) => updateSelectedTask((t) => ({ ...t, info: e.target.value }))}
                     rows={5}
-                    placeholder={t("placeholderNotes")}
                   />
                 </div>
               </div>

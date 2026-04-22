@@ -1,16 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { GripVertical, Plus } from "lucide-react"
+import { GripVertical, Plus, X } from "lucide-react"
 
 import { DAY_MS, buildTimelineDays, dayOffset, flattenTasks } from "../lib/gantt"
 import { t } from "../lib/i18n"
 import type { GanttProject } from "../types/gantt"
 import { GanttBar } from "./GanttBar"
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "./ui/context-menu"
 
 interface DragState {
   draggedId: number
@@ -192,80 +186,86 @@ export function GanttTimeline({
           return (
             <div key={task.TaskID} className="contents">
               {/* name cell */}
-              <ContextMenu>
-                <ContextMenuTrigger asChild>
-                  <div
-                    ref={(el) => {
-                      if (el) rowRefs.current.set(task.TaskID, el)
-                      else rowRefs.current.delete(task.TaskID)
+              <div
+                ref={(el) => {
+                  if (el) rowRefs.current.set(task.TaskID, el)
+                  else rowRefs.current.delete(task.TaskID)
+                }}
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  if (!dragRef.current) onOpenDetail(task.TaskID)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    if (!dragRef.current) onOpenDetail(task.TaskID)
+                  }
+                }}
+                className={`group sticky left-0 z-10 flex h-10 min-w-0 items-center gap-1 border-b bg-card text-left text-sm transition-opacity ${
+                  selectedTaskId === task.TaskID ? "bg-accent" : "hover:bg-muted/40"
+                } ${isDragged ? "opacity-40" : ""}`}
+                style={{ paddingLeft: `${8 + level * 12}px`, paddingRight: "52px" }}
+              >
+                {/* drop indicators */}
+                {isDropTarget && dragState.dropPosition === "before" && (
+                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary z-50 pointer-events-none" />
+                )}
+                {isDropTarget && dragState.dropPosition === "after" && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary z-50 pointer-events-none" />
+                )}
+
+                {/* grip handle */}
+                <div
+                  className="shrink-0 flex items-center text-muted-foreground/30 hover:text-muted-foreground/70 cursor-grab"
+                  onMouseDown={(e) => {
+                    e.stopPropagation()
+                    e.preventDefault()
+                    const state: DragState = { draggedId: task.TaskID, dragOverId: null, dropPosition: "after" }
+                    dragRef.current = state
+                    setDragState(state)
+                  }}
+                >
+                  <GripVertical size={13} />
+                </div>
+
+                <span className="truncate">{task.TaskName}</span>
+
+                <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    type="button"
+                    aria-label={t("subtask")}
+                    title={t("subtask")}
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                    onMouseDown={(e) => {
+                      e.stopPropagation()
+                      e.preventDefault()
                     }}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => {
-                      if (!dragRef.current) onOpenDetail(task.TaskID)
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onCreateSubtask(task.TaskID)
                     }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault()
-                        if (!dragRef.current) onOpenDetail(task.TaskID)
-                      }
-                    }}
-                    className={`group sticky left-0 z-10 flex h-10 min-w-0 items-center gap-1 border-b bg-card text-left text-sm transition-opacity ${
-                      selectedTaskId === task.TaskID ? "bg-accent" : "hover:bg-muted/40"
-                    } ${isDragged ? "opacity-40" : ""}`}
-                    style={{ paddingLeft: `${8 + level * 12}px`, paddingRight: "28px" }}
                   >
-                    {/* drop indicators */}
-                    {isDropTarget && dragState.dropPosition === "before" && (
-                      <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary z-50 pointer-events-none" />
-                    )}
-                    {isDropTarget && dragState.dropPosition === "after" && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary z-50 pointer-events-none" />
-                    )}
-
-                    {/* grip handle */}
-                    <div
-                      className="shrink-0 flex items-center text-muted-foreground/30 hover:text-muted-foreground/70 cursor-grab"
-                      onMouseDown={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        const state: DragState = { draggedId: task.TaskID, dragOverId: null, dropPosition: "after" }
-                        dragRef.current = state
-                        setDragState(state)
-                      }}
-                    >
-                      <GripVertical size={13} />
-                    </div>
-
-                    <span className="truncate">{task.TaskName}</span>
-
-                    <button
-                      type="button"
-                      aria-label={t("subtask")}
-                      title={t("subtask")}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-muted/60 hover:text-foreground group-hover:opacity-100"
-                      onMouseDown={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onCreateSubtask(task.TaskID)
-                      }}
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent>
-                  <ContextMenuItem
-                    variant="destructive"
-                    onSelect={() => onDelete(task.TaskID)}
+                    <Plus size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t("deleteTask")}
+                    title={t("deleteTask")}
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
+                    onMouseDown={(e) => {
+                      e.stopPropagation()
+                      e.preventDefault()
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDelete(task.TaskID)
+                    }}
                   >
-                    {t("deleteTask")}
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
 
               {/* bar cell */}
               <div

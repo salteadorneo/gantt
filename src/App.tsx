@@ -85,10 +85,12 @@ function App() {
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState("")
+  const [shareCopied, setShareCopied] = useState(false)
   const [importError, setImportError] = useState("")
   const [projectName, setProjectName] = useState(project.name ?? "")
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const nameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const shareTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleNameChange = (value: string) => {
     setProjectName(value)
@@ -119,6 +121,12 @@ function App() {
     saveProjectToLocalStorage(project)
     setShareUrl(saveProjectToUrl(project))
   }, [project])
+
+  useEffect(() => {
+    return () => {
+      if (shareTimerRef.current) clearTimeout(shareTimerRef.current)
+    }
+  }, [])
 
   const handleCommit = (updater: (p: GanttProject) => GanttProject) => {
     setProject(updater)
@@ -206,6 +214,11 @@ function App() {
     const current = shareUrl || saveProjectToUrl(project)
     try {
       await navigator.clipboard.writeText(current)
+      setShareCopied(true)
+      if (shareTimerRef.current) clearTimeout(shareTimerRef.current)
+      shareTimerRef.current = setTimeout(() => {
+        setShareCopied(false)
+      }, 3000)
     } catch {
       window.prompt(t("sharePrompt"), current)
     }
@@ -237,9 +250,14 @@ function App() {
             <Download />
             <span className="hidden sm:inline">{t("export")}</span>
           </Button>
-          <Button size="sm" variant="outline" onClick={handleCopyShareLink}>
+          <Button
+            size="sm"
+            variant="default"
+            onClick={handleCopyShareLink}
+            className="border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600"
+          >
             <Link2 />
-            <span className="hidden sm:inline">{t("share")}</span>
+            <span className="hidden sm:inline">{shareCopied ? t("shareCopied") : t("share")}</span>
           </Button>
         </div>
         <input ref={fileInputRef} type="file" accept=".gantt" className="hidden" onChange={handleImportFile} />

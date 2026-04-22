@@ -1,6 +1,12 @@
 import { buildTimelineDays, dayOffset, flattenTasks } from "../lib/gantt"
 import type { GanttProject } from "../types/gantt"
 import { GanttBar } from "./GanttBar"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "./ui/context-menu"
 
 interface Props {
   project: GanttProject
@@ -8,12 +14,13 @@ interface Props {
   onSelect: (id: number) => void
   onOpenDetail: (id: number) => void
   onCommit: (updater: (project: GanttProject) => GanttProject) => void
+  onDelete: (id: number) => void
   dayWidth?: number
 }
 
 const LABEL_WIDTH = 240
 
-export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail, onCommit, dayWidth = 44 }: Props) {
+export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail, onCommit, onDelete, dayWidth = 44 }: Props) {
   const flatTasks = flattenTasks(project.data)
   const timelineDays = buildTimelineDays(project)
   const timelineStart = timelineDays[0]
@@ -65,16 +72,28 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
           return (
             <div key={task.TaskID} className="contents">
               {/* name cell */}
-              <button
-                type="button"
-                onClick={() => onOpenDetail(task.TaskID)}
-                className={`sticky left-0 z-10 flex h-10 min-w-0 items-center border-b bg-card px-3 text-left text-sm ${
-                  selectedTaskId === task.TaskID ? "bg-accent" : "hover:bg-muted/40"
-                }`}
-                style={{ paddingLeft: `${12 + level * 12}px` }}
-              >
-                <span className="truncate">{task.TaskName}</span>
-              </button>
+              <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => onOpenDetail(task.TaskID)}
+                    className={`sticky left-0 z-10 flex h-10 min-w-0 items-center border-b bg-card px-3 text-left text-sm ${
+                      selectedTaskId === task.TaskID ? "bg-accent" : "hover:bg-muted/40"
+                    }`}
+                    style={{ paddingLeft: `${12 + level * 12}px` }}
+                  >
+                    <span className="truncate">{task.TaskName}</span>
+                  </button>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem
+                    variant="destructive"
+                    onSelect={() => onDelete(task.TaskID)}
+                  >
+                    Borrar tarea
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
 
               {/* bar cell */}
               <div

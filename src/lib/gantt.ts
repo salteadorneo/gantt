@@ -142,6 +142,16 @@ export function updateTaskInTree(
   })
 }
 
+export function removeTaskFromTree(tasks: GanttTask[], targetId: number): GanttTask[] {
+  return tasks
+    .filter((task) => task.TaskID !== targetId)
+    .map((task) =>
+      task.subtasks?.length
+        ? { ...task, subtasks: removeTaskFromTree(task.subtasks, targetId) }
+        : task,
+    )
+}
+
 export function addSiblingTask(tasks: GanttTask[], newTask: GanttTask): GanttTask[] {
   return [...tasks, newTask]
 }

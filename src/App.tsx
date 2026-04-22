@@ -26,6 +26,7 @@ import {
   getProjectFromUrl,
   normalizeTask,
   projectFromImport,
+  removeTaskFromTree,
   saveProjectToLocalStorage,
   saveProjectToUrl,
   toDateInput,
@@ -89,6 +90,17 @@ function App() {
 
   const handleCommit = (updater: (p: GanttProject) => GanttProject) => {
     setProject(updater)
+  }
+
+  const handleDelete = (id: number) => {
+    setProject((current) => ({
+      ...current,
+      data: removeTaskFromTree(current.data, id),
+    }))
+    if (selectedTaskId === id) {
+      setSelectedTaskId(null)
+      setDrawerOpen(false)
+    }
   }
 
   const updateSelectedTask = (updater: (task: GanttTask) => GanttTask) => {
@@ -199,6 +211,7 @@ function App() {
           onSelect={setSelectedTaskId}
           onOpenDetail={handleSelect}
           onCommit={handleCommit}
+          onDelete={handleDelete}
           dayWidth={DAY_WIDTH}
         />
       </main>

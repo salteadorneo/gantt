@@ -1,4 +1,6 @@
-import { buildTimelineDays, dayOffset, flattenTasks } from "../lib/gantt"
+import { useEffect, useMemo, useRef, useState } from "react"
+
+import { DAY_MS, buildTimelineDays, dayOffset, flattenTasks } from "../lib/gantt"
 import type { GanttProject } from "../types/gantt"
 import { GanttBar } from "./GanttBar"
 import {
@@ -21,8 +23,56 @@ interface Props {
 const LABEL_WIDTH = 240
 
 export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail, onCommit, onDelete, dayWidth = 44 }: Props) {
+  const viewportRef = useRef<HTMLDivElement | null>(null)
+  const [viewportWidth, setViewportWidth] = useState(0)
+
+  useEffect(() => {
+    const viewportEl = viewportRef.current
+    if (!viewportEl) return
+
+    const updateViewportWidth = () => setViewportWidth(viewportEl.clientWidth)
+    updateViewportWidth()
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateViewportWidth)
+      return () => window.removeEventListener("resize", updateViewportWidth)
+    }
+
+    const resizeObserver = new ResizeObserver(updateViewportWidth)
+    resizeObserver.observe(viewportEl)
+
+    return () => resizeObserver.disconnect()
+  }, [])
+
   const flatTasks = flattenTasks(project.data)
-  const timelineDays = buildTimelineDays(project)
+  const timelineDays = useMemo(() => {
+    const baseTimelineDays = buildTimelineDays(project)
+    if (!baseTimelineDays.length) {
+      return []
+    }
+
+    const visibleTimelineWidth = Math.max(0, viewportWidth - LABEL_WIDTH)
+    const minVisibleDays = Math.max(1, Math.floor(visibleTimelineWidth / dayWidth))
+    if (baseTimelineDays.length >= minVisibleDays) {
+      return baseTimelineDays
+    }
+
+    const missingDays = minVisibleDays - baseTimelineDays.length
+    const prependDays = Math.floor(missingDays / 2)
+    const appendDays = missingDays - prependDays
+    const firstDayMs = baseTimelineDays[0].getTime()
+    const lastDayMs = baseTimelineDays[baseTimelineDays.length - 1].getTime()
+    const extraDaysBefore = Array.from(
+      { length: prependDays },
+      (_, i) => new Date(firstDayMs - (prependDays - i) * DAY_MS),
+    )
+    const extraDaysAfter = Array.from(
+      { length: appendDays },
+      (_, i) => new Date(lastDayMs + (i + 1) * DAY_MS),
+    )
+
+    return [...extraDaysBefore, ...baseTimelineDays, ...extraDaysAfter]
+  }, [project, dayWidth, viewportWidth])
   const timelineStart = timelineDays[0]
 
   if (!timelineStart || !flatTasks.length) {
@@ -34,7 +84,7 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
   }
 
   return (
-    <div className="overflow-auto rounded-md border">
+    <div ref={viewportRef} className="h-full overflow-auto">
       <div
         className="grid"
         style={{

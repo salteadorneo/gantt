@@ -6,7 +6,6 @@ import {
   Drawer,
   DrawerClose,
   DrawerContent,
-  DrawerFooter,
   DrawerHeader,
   DrawerTitle,
 } from "./components/ui/drawer"
@@ -203,7 +202,7 @@ function App() {
       </header>
 
       {/* Timeline full-screen */}
-      <main className="min-h-0 flex-1 overflow-auto p-4">
+      <main className="min-h-0 flex-1 overflow-hidden">
         <GanttTimeline
           project={project}
           selectedTaskId={selectedTaskId}

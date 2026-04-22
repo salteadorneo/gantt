@@ -140,8 +140,16 @@ export function GanttTimeline({
 
   if (!timelineStart || !flatTasks.length) {
     return (
-      <div className="p-6 text-sm text-muted-foreground">
-        {t("noTasksToShow")}
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-sm text-muted-foreground">
+        <span>{t("noTasksToShow")}</span>
+        <button
+          type="button"
+          onClick={onCreateTask}
+          className="inline-flex items-center gap-1 rounded-sm border px-3 py-1.5 text-sm text-foreground hover:bg-muted/60"
+        >
+          <Plus size={14} />
+          <span>{t("emptyCreateFirstTask")}</span>
+        </button>
       </div>
     )
   }

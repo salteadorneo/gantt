@@ -9,7 +9,6 @@ import {
   DrawerTitle,
 } from "./components/ui/drawer"
 import { Input } from "./components/ui/input"
-import { Separator } from "./components/ui/separator"
 import { Textarea } from "./components/ui/textarea"
 import { GanttTimeline } from "./components/GanttTimeline"
 import { t } from "./lib/i18n"
@@ -204,7 +203,7 @@ function App() {
       {/* Toolbar */}
       <header className="flex shrink-0 items-center gap-1.5 border-b bg-card px-3 py-2 sm:gap-2 sm:px-4">
         <div className="relative mr-1 sm:mr-2 shrink-0">
-          <span aria-hidden className="invisible block whitespace-pre text-sm font-semibold tracking-tight px-1 min-w-10">
+          <span aria-hidden className="invisible block whitespace-pre text-base sm:text-lg font-semibold tracking-tight px-1 min-w-10">
             {projectName || t("appTitle")}
           </span>
           <input
@@ -213,10 +212,9 @@ function App() {
             placeholder={t("appTitle")}
             onChange={(e) => handleNameChange(e.target.value)}
             onFocus={(e) => e.target.select()}
-            className="absolute inset-0 w-full bg-transparent text-sm font-semibold tracking-tight rounded-sm px-1 border-0 outline-none shadow-none hover:bg-muted/50 focus:bg-accent/40 transition-colors cursor-default focus:cursor-text placeholder:text-foreground"
+            className="absolute inset-0 w-full bg-transparent text-base sm:text-lg font-semibold tracking-tight rounded-sm px-1 border-0 outline-none shadow-none hover:bg-muted/50 focus:bg-accent/40 transition-colors cursor-default focus:cursor-text placeholder:text-foreground"
           />
         </div>
-        <Separator orientation="vertical" className="h-5" />
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           <Button size="sm" variant="outline" onClick={handleImportClick}>
             <Upload />

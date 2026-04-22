@@ -217,27 +217,24 @@ function App() {
           />
         </div>
         <Separator orientation="vertical" className="h-5" />
-        <Button size="sm" onClick={handleNewTask}>
-          <Plus />
-          <span className="hidden sm:inline">{t("newTask")}</span>
-        </Button>
         <Button size="sm" variant="secondary" onClick={handleNewSubtask} disabled={!selectedTaskId}>
           <Plus />
           <span className="hidden sm:inline">{t("subtask")}</span>
         </Button>
-        <Separator orientation="vertical" className="h-5" />
-        <Button size="sm" variant="outline" onClick={handleImportClick}>
-          <Upload />
-          <span className="hidden sm:inline">{t("import")}</span>
-        </Button>
-        <Button size="sm" variant="outline" onClick={handleExport}>
-          <Download />
-          <span className="hidden sm:inline">{t("export")}</span>
-        </Button>
-        <Button size="sm" variant="outline" onClick={handleCopyShareLink}>
-          <Link2 />
-          <span className="hidden sm:inline">{t("share")}</span>
-        </Button>
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          <Button size="sm" variant="outline" onClick={handleImportClick}>
+            <Upload />
+            <span className="hidden sm:inline">{t("import")}</span>
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleExport}>
+            <Download />
+            <span className="hidden sm:inline">{t("export")}</span>
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleCopyShareLink}>
+            <Link2 />
+            <span className="hidden sm:inline">{t("share")}</span>
+          </Button>
+        </div>
         <input ref={fileInputRef} type="file" accept=".gantt" className="hidden" onChange={handleImportFile} />
         {importError && <span className="text-xs text-destructive">{importError}</span>}
       </header>
@@ -249,6 +246,7 @@ function App() {
           selectedTaskId={selectedTaskId}
           onSelect={setSelectedTaskId}
           onOpenDetail={handleSelect}
+          onCreateTask={handleNewTask}
           onCommit={handleCommit}
           onDelete={handleDelete}
           onReorder={handleReorder}

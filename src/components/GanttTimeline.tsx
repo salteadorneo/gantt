@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { GripVertical } from "lucide-react"
+import { GripVertical, Plus } from "lucide-react"
 
 import { DAY_MS, buildTimelineDays, dayOffset, flattenTasks } from "../lib/gantt"
 import { t } from "../lib/i18n"
@@ -23,13 +23,24 @@ interface Props {
   selectedTaskId: number | null
   onSelect: (id: number) => void
   onOpenDetail: (id: number) => void
+  onCreateTask: () => void
   onCommit: (updater: (project: GanttProject) => GanttProject) => void
   onDelete: (id: number) => void
   onReorder: (draggedId: number, targetId: number, position: "before" | "after") => void
   dayWidth?: number
 }
 
-export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail, onCommit, onDelete, onReorder, dayWidth = 44 }: Props) {
+export function GanttTimeline({
+  project,
+  selectedTaskId,
+  onSelect,
+  onOpenDetail,
+  onCreateTask,
+  onCommit,
+  onDelete,
+  onReorder,
+  dayWidth = 44,
+}: Props) {
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const [viewportWidth, setViewportWidth] = useState(0)
   const [dragState, setDragState] = useState<DragState | null>(null)
@@ -289,6 +300,22 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
             </div>
           )
         })}
+
+        {/* Add task row */}
+        <div className="contents">
+          <button
+            type="button"
+            onClick={onCreateTask}
+            className="sticky left-0 z-10 flex h-10 min-w-0 items-center gap-1 border-b bg-card px-2 text-left text-sm text-muted-foreground hover:bg-muted/40"
+          >
+            <Plus size={13} className="shrink-0" />
+            <span>{t("newTask")}</span>
+          </button>
+          <div
+            className="h-10 border-b"
+            style={{ gridColumn: `2 / span ${timelineDays.length}` }}
+          />
+        </div>
       </div>
     </div>
   )

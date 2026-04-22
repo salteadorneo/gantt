@@ -6,13 +6,14 @@ interface Props {
   project: GanttProject
   selectedTaskId: number | null
   onSelect: (id: number) => void
+  onOpenDetail: (id: number) => void
   onCommit: (updater: (project: GanttProject) => GanttProject) => void
   dayWidth?: number
 }
 
 const LABEL_WIDTH = 240
 
-export function GanttTimeline({ project, selectedTaskId, onSelect, onCommit, dayWidth = 44 }: Props) {
+export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail, onCommit, dayWidth = 44 }: Props) {
   const flatTasks = flattenTasks(project.data)
   const timelineDays = buildTimelineDays(project)
   const timelineStart = timelineDays[0]
@@ -65,7 +66,7 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onCommit, day
               {/* name cell */}
               <button
                 type="button"
-                onClick={() => onSelect(task.TaskID)}
+                onClick={() => onOpenDetail(task.TaskID)}
                 className={`sticky left-0 z-10 flex h-10 min-w-0 items-center border-b bg-card px-3 text-left text-sm ${
                   selectedTaskId === task.TaskID ? "bg-accent" : "hover:bg-muted/40"
                 }`}

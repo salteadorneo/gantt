@@ -1,9 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Download, FileJson, Link2, Plus, Upload } from "lucide-react"
+import { Download, FileJson, Link2, Plus, Upload, X } from "lucide-react"
 
-import { Badge } from "./components/ui/badge"
 import { Button } from "./components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card"
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "./components/ui/drawer"
 import { Input } from "./components/ui/input"
 import { Separator } from "./components/ui/separator"
 import { Textarea } from "./components/ui/textarea"
@@ -47,18 +54,13 @@ function createTask(taskId: number, label: string, startDateIso: string): GanttT
 function App() {
   const [project, setProject] = useState<GanttProject>(() => {
     const fromUrl = getProjectFromUrl()
-    if (fromUrl) {
-      return fromUrl
-    }
-
+    if (fromUrl) return fromUrl
     const fromLocal = getProjectFromLocalStorage()
-    if (fromLocal) {
-      return fromLocal
-    }
-
+    if (fromLocal) return fromLocal
     return createDefaultProject()
   })
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState("")
   const [importError, setImportError] = useState("")
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -75,7 +77,6 @@ function App() {
       setSelectedTaskId(null)
       return
     }
-
     if (!selectedTaskId || !flatTasks.some((row) => row.task.TaskID === selectedTaskId)) {
       setSelectedTaskId(flatTasks[0].task.TaskID)
     }
@@ -91,42 +92,35 @@ function App() {
   }
 
   const updateSelectedTask = (updater: (task: GanttTask) => GanttTask) => {
-    if (!selectedTaskId) {
-      return
-    }
-
+    if (!selectedTaskId) return
     setProject((current) => ({
       ...current,
       data: updateTaskInTree(current.data, selectedTaskId, (task) => normalizeTask(updater(task))),
     }))
   }
 
+  const handleSelect = (id: number) => {
+    setSelectedTaskId(id)
+    setDrawerOpen(true)
+  }
+
   const handleNewTask = () => {
     const nextId = getNextTaskId(project)
     const today = new Date().toISOString()
     const newTask = createTask(nextId, `Tarea ${nextId}`, today)
-
-    setProject((current) => ({
-      ...current,
-      data: addSiblingTask(current.data, newTask),
-    }))
+    setProject((current) => ({ ...current, data: addSiblingTask(current.data, newTask) }))
     setSelectedTaskId(nextId)
+    setDrawerOpen(true)
   }
 
   const handleNewSubtask = () => {
-    if (!selectedTaskId) {
-      return
-    }
-
+    if (!selectedTaskId) return
     const nextId = getNextTaskId(project)
     const start = selectedTask?.StartDate ?? new Date().toISOString()
     const child = createTask(nextId, `Subtarea ${nextId}`, start)
-
-    setProject((current) => ({
-      ...current,
-      data: addSubtask(current.data, selectedTaskId, child),
-    }))
+    setProject((current) => ({ ...current, data: addSubtask(current.data, selectedTaskId, child) }))
     setSelectedTaskId(nextId)
+    setDrawerOpen(true)
   }
 
   const handleExport = () => {
@@ -135,29 +129,20 @@ function App() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `gantt-${Date.now()}.json`
+    a.download = `gantt-${Date.now()}.gantt`
     a.click()
     URL.revokeObjectURL(url)
   }
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click()
-  }
+  const handleImportClick = () => fileInputRef.current?.click()
 
   const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (!file) {
-      return
-    }
-
+    if (!file) return
     try {
       const raw = await file.text()
       const imported = projectFromImport(raw)
-      const normalized: GanttProject = {
-        ...imported,
-        data: imported.data.map(normalizeTask),
-      }
-      setProject(normalized)
+      setProject({ ...imported, data: imported.data.map(normalizeTask) })
       setImportError("")
     } catch {
       setImportError("No se pudo importar. Verifica que el JSON sea compatible con OnlineGantt.")
@@ -167,9 +152,7 @@ function App() {
   }
 
   const handleCopyShareLink = async () => {
-    const fallback = saveProjectToUrl(project)
-    const current = shareUrl || fallback
-
+    const current = shareUrl || saveProjectToUrl(project)
     try {
       await navigator.clipboard.writeText(current)
     } catch {
@@ -178,162 +161,167 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 p-4 md:p-6">
-        <Card className="gap-4 py-4">
-          <CardHeader className="px-4 md:px-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <CardTitle className="text-xl tracking-tight">Gantt URL-first</CardTitle>
-                <CardDescription>
-                  Frontend puro, compatible con OnlineGantt, sesión persistente en URL y localStorage.
-                </CardDescription>
+    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+      {/* Toolbar */}
+      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-card px-4 py-2">
+        <span className="mr-2 text-sm font-semibold tracking-tight">Gantt</span>
+        <Separator orientation="vertical" className="h-5" />
+        <Button size="sm" onClick={handleNewTask}>
+          <Plus />
+          Nueva tarea
+        </Button>
+        <Button size="sm" variant="secondary" onClick={handleNewSubtask} disabled={!selectedTaskId}>
+          <Plus />
+          Subtarea
+        </Button>
+        <Separator orientation="vertical" className="h-5" />
+        <Button size="sm" variant="outline" onClick={handleImportClick}>
+          <Upload />
+          Importar
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleExport}>
+          <Download />
+          Exportar
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleCopyShareLink}>
+          <Link2 />
+          Compartir
+        </Button>
+        <input ref={fileInputRef} type="file" accept=".gantt" className="hidden" onChange={handleImportFile} />
+        {importError && <span className="text-xs text-destructive">{importError}</span>}
+      </header>
+
+      {/* Timeline full-screen */}
+      <main className="min-h-0 flex-1 overflow-auto p-4">
+        <GanttTimeline
+          project={project}
+          selectedTaskId={selectedTaskId}
+          onSelect={setSelectedTaskId}
+          onOpenDetail={handleSelect}
+          onCommit={handleCommit}
+          dayWidth={DAY_WIDTH}
+        />
+      </main>
+
+      {/* Drawer de detalles por la derecha */}
+      <Drawer direction="right" open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <DrawerContent>
+          <DrawerHeader className="border-b">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <DrawerTitle className="truncate">
+                  {selectedTask?.TaskName ?? "Tarea"}
+                </DrawerTitle>
+                <DrawerDescription className="flex items-center gap-1 mt-0.5">
+                  <FileJson className="size-3" />
+                  TaskID {selectedTask?.TaskID}
+                </DrawerDescription>
               </div>
-              <Badge variant="secondary">Sin backend</Badge>
+              <DrawerClose asChild>
+                <Button variant="ghost" size="icon" className="shrink-0">
+                  <X />
+                </Button>
+              </DrawerClose>
             </div>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-center gap-2 px-4 md:px-6">
-            <Button onClick={handleNewTask}>
-              <Plus />
-              Nueva tarea
-            </Button>
-            <Button variant="secondary" onClick={handleNewSubtask}>
-              <Plus />
-              Nueva subtarea
-            </Button>
-            <Button variant="outline" onClick={handleImportClick}>
-              <Upload />
-              Importar JSON
-            </Button>
-            <Button variant="outline" onClick={handleExport}>
-              <Download />
-              Exportar JSON
-            </Button>
-            <Button variant="outline" onClick={handleCopyShareLink}>
-              <Link2 />
-              Copiar enlace
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/json"
-              className="hidden"
-              onChange={handleImportFile}
-            />
-          </CardContent>
-        </Card>
+          </DrawerHeader>
 
-        {importError ? <p className="text-sm text-destructive">{importError}</p> : null}
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
-          <Card className="gap-3 py-4">
-            <CardHeader className="px-4 pb-2 md:px-6">
-              <CardTitle>Lista de tareas</CardTitle>
-              <CardDescription>Vista simple de estructura y edición rápida.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 px-4 md:px-6">
-              <div className="max-h-[320px] overflow-auto rounded-md border">
-                {flatTasks.map(({ task, level }) => (
-                  <button
-                    key={task.TaskID}
-                    type="button"
-                    onClick={() => setSelectedTaskId(task.TaskID)}
-                    className={`flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0 ${
-                      selectedTaskId === task.TaskID ? "bg-accent" : "hover:bg-muted/50"
-                    }`}
-                  >
-                    <span style={{ paddingLeft: `${level * 14}px` }} className="truncate">
-                      {task.TaskName}
-                    </span>
-                    <Badge variant="outline">{task.Progress}%</Badge>
-                  </button>
-                ))}
-              </div>
-
-              <Separator />
-
-              {selectedTask ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <FileJson className="size-4" />
-                    TaskID {selectedTask.TaskID}
-                  </div>
+          {selectedTask ? (
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Nombre</label>
                   <Input
                     value={selectedTask.TaskName}
-                    onChange={(event) =>
-                      updateSelectedTask((task) => ({ ...task, TaskName: event.target.value }))
-                    }
-                    placeholder="Nombre"
+                    onChange={(e) => updateSelectedTask((t) => ({ ...t, TaskName: e.target.value }))}
                   />
-                  <div className="grid grid-cols-2 gap-2">
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Inicio</label>
                     <Input
                       type="date"
                       value={toDateInput(selectedTask.StartDate)}
-                      onChange={(event) => {
-                        const nextStart = fromDateInput(event.target.value)
-                        updateSelectedTask((task) => ({ ...task, StartDate: nextStart }))
-                      }}
+                      onChange={(e) =>
+                        updateSelectedTask((t) => ({ ...t, StartDate: fromDateInput(e.target.value) }))
+                      }
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Fin</label>
                     <Input
                       type="date"
                       value={toDateInput(selectedTask.EndDate)}
-                      onChange={(event) => {
-                        const nextEnd = fromDateInput(event.target.value)
-                        updateSelectedTask((task) => ({ ...task, EndDate: nextEnd }))
-                      }}
+                      onChange={(e) =>
+                        updateSelectedTask((t) => ({ ...t, EndDate: fromDateInput(e.target.value) }))
+                      }
                     />
                   </div>
-                  <Input
-                    type="number"
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Progreso — {selectedTask.Progress}%
+                  </label>
+                  <input
+                    type="range"
                     min={0}
                     max={100}
                     value={selectedTask.Progress}
-                    onChange={(event) => {
-                      const raw = Number(event.target.value)
-                      const safe = Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0
-                      updateSelectedTask((task) => ({ ...task, Progress: safe }))
+                    onChange={(e) => {
+                      const safe = Math.max(0, Math.min(100, Number(e.target.value)))
+                      updateSelectedTask((t) => ({ ...t, Progress: safe }))
                     }}
-                    placeholder="Progreso"
-                  />
-                  <Input
-                    value={selectedTask.Predecessor ?? ""}
-                    onChange={(event) =>
-                      updateSelectedTask((task) => ({ ...task, Predecessor: event.target.value }))
-                    }
-                    placeholder="Predecessor (ej: 2FS)"
-                  />
-                  <Textarea
-                    value={selectedTask.info}
-                    onChange={(event) =>
-                      updateSelectedTask((task) => ({ ...task, info: event.target.value }))
-                    }
-                    placeholder="Info HTML"
-                    rows={4}
+                    className="w-full accent-primary"
                   />
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Selecciona una tarea para editar.</p>
-              )}
-            </CardContent>
-          </Card>
 
-          <Card className="gap-3 py-4">
-            <CardHeader className="px-4 pb-2 md:px-6">
-              <CardTitle>Timeline</CardTitle>
-              <CardDescription>Arrastra para mover o redimensionar tareas. Comparte el enlace.</CardDescription>
-            </CardHeader>
-            <CardContent className="px-4 md:px-6">
-              <GanttTimeline
-                project={project}
-                selectedTaskId={selectedTaskId}
-                onSelect={setSelectedTaskId}
-                onCommit={handleCommit}
-                dayWidth={DAY_WIDTH}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Duración (días)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={selectedTask.Duration}
+                    readOnly
+                    className="bg-muted/50"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Predecesor</label>
+                  <Input
+                    value={selectedTask.Predecessor ?? ""}
+                    onChange={(e) =>
+                      updateSelectedTask((t) => ({ ...t, Predecessor: e.target.value }))
+                    }
+                    placeholder="ej: 2FS"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Notas</label>
+                  <Textarea
+                    value={selectedTask.info}
+                    onChange={(e) => updateSelectedTask((t) => ({ ...t, info: e.target.value }))}
+                    rows={5}
+                    placeholder="Notas (HTML)"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
+              Selecciona una tarea para editar.
+            </div>
+          )}
+
+          <DrawerFooter className="border-t">
+            <DrawerClose asChild>
+              <Button variant="outline">Cerrar</Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </div>
   )
 }

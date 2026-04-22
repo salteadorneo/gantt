@@ -126,6 +126,7 @@ export function GanttBar({ task, timelineStart, dayWidth, selected, onSelect, on
       onMouseDown={(e) => {
         onSelect(task.TaskID)
         startDrag(e, "move")
+        e.stopPropagation()
       }}
       title={`${task.TaskName} — ${task.Duration}d (${task.Progress}%)`}
     >

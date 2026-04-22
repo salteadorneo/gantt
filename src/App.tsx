@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Download, FileJson, Link2, Plus, Upload, X } from "lucide-react"
+import { Download, Link2, Plus, Upload, X } from "lucide-react"
 
 import { Button } from "./components/ui/button"
 import {
   Drawer,
   DrawerClose,
   DrawerContent,
-  DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
@@ -223,12 +222,8 @@ function App() {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <DrawerTitle className="truncate">
-                  {selectedTask?.TaskName ?? "Tarea"}
+                  Tarea
                 </DrawerTitle>
-                <DrawerDescription className="flex items-center gap-1 mt-0.5">
-                  <FileJson className="size-3" />
-                  TaskID {selectedTask?.TaskID}
-                </DrawerDescription>
               </div>
               <DrawerClose asChild>
                 <Button variant="ghost" size="icon" className="shrink-0">
@@ -327,12 +322,6 @@ function App() {
               Selecciona una tarea para editar.
             </div>
           )}
-
-          <DrawerFooter className="border-t">
-            <DrawerClose asChild>
-              <Button variant="outline">Cerrar</Button>
-            </DrawerClose>
-          </DrawerFooter>
         </DrawerContent>
       </Drawer>
     </div>

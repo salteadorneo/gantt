@@ -20,11 +20,11 @@ interface Props {
   dayWidth?: number
 }
 
-const LABEL_WIDTH = 240
-
 export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail, onCommit, onDelete, dayWidth = 44 }: Props) {
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const [viewportWidth, setViewportWidth] = useState(0)
+
+  const LABEL_WIDTH = viewportWidth > 0 && viewportWidth < 640 ? 120 : 240
 
   useEffect(() => {
     const viewportEl = viewportRef.current
@@ -106,10 +106,9 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
                 isWeekend ? "bg-muted/60 font-medium" : isMonday ? "bg-muted/40 font-medium" : ""
               }`}
             >
-              {new Intl.DateTimeFormat("es-ES", {
-                day: "2-digit",
-                month: "2-digit",
-              }).format(day)}
+              {viewportWidth < 640
+                ? day.getUTCDate()
+                : new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "2-digit" }).format(day)}
             </div>
           )
         })}

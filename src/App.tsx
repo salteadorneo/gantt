@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Download, Link2, Plus, Upload, X } from "lucide-react"
-
 import { Button } from "./components/ui/button"
 import {
   Drawer,
@@ -32,7 +31,16 @@ import {
 } from "./lib/gantt"
 import type { GanttProject, GanttTask } from "./types/gantt"
 
-const DAY_WIDTH = 44
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 640)
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)")
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener("change", handler)
+    return () => mq.removeEventListener("change", handler)
+  }, [])
+  return isMobile
+}
 
 function createTask(taskId: number, label: string, startDateIso: string): GanttTask {
   return {
@@ -51,6 +59,9 @@ function createTask(taskId: number, label: string, startDateIso: string): GanttT
 }
 
 function App() {
+  const isMobile = useIsMobile()
+  const DAY_WIDTH = isMobile ? 32 : 44
+
   const [project, setProject] = useState<GanttProject>(() => {
     const fromUrl = getProjectFromUrl()
     if (fromUrl) return fromUrl
@@ -120,7 +131,6 @@ function App() {
     const newTask = createTask(nextId, `Tarea ${nextId}`, today)
     setProject((current) => ({ ...current, data: addSiblingTask(current.data, newTask) }))
     setSelectedTaskId(nextId)
-    setDrawerOpen(true)
   }
 
   const handleNewSubtask = () => {
@@ -130,7 +140,6 @@ function App() {
     const child = createTask(nextId, `Subtarea ${nextId}`, start)
     setProject((current) => ({ ...current, data: addSubtask(current.data, selectedTaskId, child) }))
     setSelectedTaskId(nextId)
-    setDrawerOpen(true)
   }
 
   const handleExport = () => {
@@ -173,29 +182,29 @@ function App() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       {/* Toolbar */}
-      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-card px-4 py-2">
-        <span className="mr-2 text-sm font-semibold tracking-tight">Gantt</span>
+      <header className="flex shrink-0 items-center gap-1.5 border-b bg-card px-3 py-2 sm:gap-2 sm:px-4">
+        <span className="mr-1 text-sm font-semibold tracking-tight sm:mr-2">Gantt</span>
         <Separator orientation="vertical" className="h-5" />
         <Button size="sm" onClick={handleNewTask}>
           <Plus />
-          Nueva tarea
+          <span className="hidden sm:inline">Nueva tarea</span>
         </Button>
         <Button size="sm" variant="secondary" onClick={handleNewSubtask} disabled={!selectedTaskId}>
           <Plus />
-          Subtarea
+          <span className="hidden sm:inline">Subtarea</span>
         </Button>
         <Separator orientation="vertical" className="h-5" />
         <Button size="sm" variant="outline" onClick={handleImportClick}>
           <Upload />
-          Importar
+          <span className="hidden sm:inline">Importar</span>
         </Button>
         <Button size="sm" variant="outline" onClick={handleExport}>
           <Download />
-          Exportar
+          <span className="hidden sm:inline">Exportar</span>
         </Button>
         <Button size="sm" variant="outline" onClick={handleCopyShareLink}>
           <Link2 />
-          Compartir
+          <span className="hidden sm:inline">Compartir</span>
         </Button>
         <input ref={fileInputRef} type="file" accept=".gantt" className="hidden" onChange={handleImportFile} />
         {importError && <span className="text-xs text-destructive">{importError}</span>}
@@ -214,8 +223,8 @@ function App() {
         />
       </main>
 
-      {/* Drawer de detalles por la derecha */}
-      <Drawer direction="right" open={drawerOpen} onOpenChange={setDrawerOpen}>
+      {/* Drawer de detalles */}
+      <Drawer direction={isMobile ? "bottom" : "right"} open={drawerOpen} onOpenChange={setDrawerOpen}>
         <DrawerContent>
           <DrawerHeader className="border-b">
             <div className="flex items-start justify-between gap-2">

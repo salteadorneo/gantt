@@ -67,66 +67,83 @@ export function GanttBar({ task, timelineStart, dayWidth, selected, onSelect, on
     }))
   }
 
-  const startDrag = (e: React.MouseEvent<HTMLDivElement>, type: DragType) => {
-    e.preventDefault()
-    e.stopPropagation()
-
+  const initDrag = (clientX: number, type: DragType) => {
     const barEl = barRef.current
     if (!barEl) return
 
     dragRef.current = {
       type,
-      startX: e.clientX,
+      startX: clientX,
       originalStartMs: new Date(task.StartDate).getTime(),
       originalEndMs: new Date(task.EndDate).getTime(),
       barEl,
       initialLeft: leftPx,
       initialWidth: widthPx,
     }
+  }
+
+  const applyDragMove = (clientX: number) => {
+    const drag = dragRef.current
+    if (!drag) return
+    const dx = clientX - drag.startX
+    const daysDelta = Math.round(dx / dayWidth)
+    if (drag.type === "move") {
+      drag.barEl.style.left = `${Math.max(2, drag.initialLeft + daysDelta * dayWidth)}px`
+    } else if (drag.type === "resize") {
+      drag.barEl.style.width = `${Math.max(dayWidth - 4, drag.initialWidth + daysDelta * dayWidth)}px`
+    } else {
+      const clampedDelta = Math.min(daysDelta, Math.floor((drag.initialWidth - (dayWidth - 4)) / dayWidth))
+      drag.barEl.style.left = `${drag.initialLeft + clampedDelta * dayWidth}px`
+      drag.barEl.style.width = `${drag.initialWidth - clampedDelta * dayWidth}px`
+    }
+  }
+
+  const finishDrag = (clientX: number) => {
+    const drag = dragRef.current
+    dragRef.current = null
+    if (!drag) return
+    const daysDelta = Math.round((clientX - drag.startX) / dayWidth)
+    commitDrag(daysDelta, drag.type)
+  }
+
+  const startDrag = (e: React.MouseEvent<HTMLDivElement>, type: DragType) => {
+    e.preventDefault()
+    e.stopPropagation()
+    initDrag(e.clientX, type)
 
     document.body.style.cursor = type === "move" ? "grabbing" : "ew-resize"
     document.body.style.userSelect = "none"
 
-    const onMouseMove = (ev: MouseEvent) => {
-      const drag = dragRef.current
-      if (!drag) return
-
-      const dx = ev.clientX - drag.startX
-      const daysDelta = Math.round(dx / dayWidth)
-
-      if (drag.type === "move") {
-        const newLeft = Math.max(2, drag.initialLeft + daysDelta * dayWidth)
-        drag.barEl.style.left = `${newLeft}px`
-      } else if (drag.type === "resize") {
-        const newWidth = Math.max(dayWidth - 4, drag.initialWidth + daysDelta * dayWidth)
-        drag.barEl.style.width = `${newWidth}px`
-      } else {
-        // resize-left
-        const clampedDelta = Math.min(daysDelta, Math.floor((drag.initialWidth - (dayWidth - 4)) / dayWidth))
-        const newLeft = drag.initialLeft + clampedDelta * dayWidth
-        const newWidth = drag.initialWidth - clampedDelta * dayWidth
-        drag.barEl.style.left = `${newLeft}px`
-        drag.barEl.style.width = `${newWidth}px`
-      }
-    }
-
+    const onMouseMove = (ev: MouseEvent) => applyDragMove(ev.clientX)
     const onMouseUp = (ev: MouseEvent) => {
       document.removeEventListener("mousemove", onMouseMove)
       document.removeEventListener("mouseup", onMouseUp)
       document.body.style.cursor = ""
       document.body.style.userSelect = ""
-
-      const drag = dragRef.current
-      dragRef.current = null
-      if (!drag) return
-
-      const dx = ev.clientX - drag.startX
-      const daysDelta = Math.round(dx / dayWidth)
-      commitDrag(daysDelta, drag.type)
+      finishDrag(ev.clientX)
     }
 
     document.addEventListener("mousemove", onMouseMove)
     document.addEventListener("mouseup", onMouseUp)
+  }
+
+  const startTouchDrag = (e: React.TouchEvent<HTMLDivElement>, type: DragType) => {
+    e.stopPropagation()
+    const touch = e.touches[0]
+    initDrag(touch.clientX, type)
+
+    const onTouchMove = (ev: TouchEvent) => {
+      ev.preventDefault()
+      applyDragMove(ev.touches[0].clientX)
+    }
+    const onTouchEnd = (ev: TouchEvent) => {
+      document.removeEventListener("touchmove", onTouchMove)
+      document.removeEventListener("touchend", onTouchEnd)
+      finishDrag(ev.changedTouches[0].clientX)
+    }
+
+    document.addEventListener("touchmove", onTouchMove, { passive: false })
+    document.addEventListener("touchend", onTouchEnd)
   }
 
   return (
@@ -142,6 +159,10 @@ export function GanttBar({ task, timelineStart, dayWidth, selected, onSelect, on
         onSelect(task.TaskID)
         startDrag(e, "move")
         e.stopPropagation()
+      }}
+      onTouchStart={(e) => {
+        onSelect(task.TaskID)
+        startTouchDrag(e, "move")
       }}
       title={`${task.TaskName} — ${task.Duration}d (${task.Progress}%)`}
     >
@@ -160,19 +181,27 @@ export function GanttBar({ task, timelineStart, dayWidth, selected, onSelect, on
 
       {/* resize handle left */}
       <div
-        className="absolute left-0 top-0 h-full w-2 cursor-ew-resize hover:bg-white/30 rounded-l-md"
+        className="absolute left-0 top-0 h-full w-3 cursor-ew-resize hover:bg-white/30 rounded-l-md"
         onMouseDown={(e) => {
           onSelect(task.TaskID)
           startDrag(e, "resize-left")
+        }}
+        onTouchStart={(e) => {
+          onSelect(task.TaskID)
+          startTouchDrag(e, "resize-left")
         }}
       />
 
       {/* resize handle right */}
       <div
-        className="absolute right-0 top-0 h-full w-2 cursor-ew-resize hover:bg-white/30 rounded-r-md"
+        className="absolute right-0 top-0 h-full w-3 cursor-ew-resize hover:bg-white/30 rounded-r-md"
         onMouseDown={(e) => {
           onSelect(task.TaskID)
           startDrag(e, "resize")
+        }}
+        onTouchStart={(e) => {
+          onSelect(task.TaskID)
+          startTouchDrag(e, "resize")
         }}
       />
     </div>

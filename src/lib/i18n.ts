@@ -1,0 +1,75 @@
+const translations = {
+  en: {
+    appTitle: "Gantt",
+    newTask: "New task",
+    subtask: "Subtask",
+    import: "Import",
+    export: "Export",
+    share: "Share",
+    drawerTitle: "Task",
+    taskColumnHeader: "Task",
+    labelName: "Name",
+    labelStart: "Start",
+    labelEnd: "End",
+    labelProgress: "Progress",
+    labelDuration: "Duration (days)",
+    labelPredecessor: "Predecessor",
+    placeholderPredecessor: "e.g.: 2FS",
+    labelNotes: "Notes",
+    placeholderNotes: "Notes (HTML)",
+    defaultTaskName: "Task",
+    defaultSubtaskName: "Subtask",
+    defaultProjectName: "New project",
+    defaultBaseTask: "Base task",
+    importError: "Could not import. Verify the JSON is compatible with OnlineGantt.",
+    importFormatError: "JSON format incompatible with OnlineGantt",
+    sharePrompt: "Copy this link:",
+    selectTaskToEdit: "Select a task to edit.",
+    noTasksToShow: "No tasks to show.",
+    deleteTask: "Delete task",
+    milestone: "Milestone",
+    dateLocale: "en-US",
+  },
+  es: {
+    appTitle: "Gantt",
+    newTask: "Nueva tarea",
+    subtask: "Subtarea",
+    import: "Importar",
+    export: "Exportar",
+    share: "Compartir",
+    drawerTitle: "Tarea",
+    taskColumnHeader: "Tarea",
+    labelName: "Nombre",
+    labelStart: "Inicio",
+    labelEnd: "Fin",
+    labelProgress: "Progreso",
+    labelDuration: "Duración (días)",
+    labelPredecessor: "Predecesor",
+    placeholderPredecessor: "ej: 2FS",
+    labelNotes: "Notas",
+    placeholderNotes: "Notas (HTML)",
+    defaultTaskName: "Tarea",
+    defaultSubtaskName: "Subtarea",
+    defaultProjectName: "Nuevo proyecto",
+    defaultBaseTask: "Tarea base",
+    importError: "No se pudo importar. Verifica que el JSON sea compatible con OnlineGantt.",
+    importFormatError: "Formato JSON incompatible con OnlineGantt",
+    sharePrompt: "Copia este enlace:",
+    selectTaskToEdit: "Selecciona una tarea para editar.",
+    noTasksToShow: "No hay tareas para mostrar.",
+    deleteTask: "Borrar tarea",
+    milestone: "Hito",
+    dateLocale: "es-ES",
+  },
+} as const
+
+type Locale = keyof typeof translations
+type TranslationKey = keyof typeof translations.en
+
+function detectLocale(): Locale {
+  const lang = (typeof navigator !== "undefined" && (navigator.language || navigator.languages?.[0])) || "en"
+  return lang.toLowerCase().startsWith("es") ? "es" : "en"
+}
+
+export const locale: Locale = detectLocale()
+export const t = (key: TranslationKey): string => translations[locale][key]

@@ -12,6 +12,7 @@ import { Input } from "./components/ui/input"
 import { Separator } from "./components/ui/separator"
 import { Textarea } from "./components/ui/textarea"
 import { GanttTimeline } from "./components/GanttTimeline"
+import { t } from "./lib/i18n"
 import {
   addSiblingTask,
   addSubtask,
@@ -128,7 +129,7 @@ function App() {
   const handleNewTask = () => {
     const nextId = getNextTaskId(project)
     const today = new Date().toISOString()
-    const newTask = createTask(nextId, `Tarea ${nextId}`, today)
+    const newTask = createTask(nextId, `${t("defaultTaskName")} ${nextId}`, today)
     setProject((current) => ({ ...current, data: addSiblingTask(current.data, newTask) }))
     setSelectedTaskId(nextId)
   }
@@ -137,7 +138,7 @@ function App() {
     if (!selectedTaskId) return
     const nextId = getNextTaskId(project)
     const start = selectedTask?.StartDate ?? new Date().toISOString()
-    const child = createTask(nextId, `Subtarea ${nextId}`, start)
+    const child = createTask(nextId, `${t("defaultSubtaskName")} ${nextId}`, start)
     setProject((current) => ({ ...current, data: addSubtask(current.data, selectedTaskId, child) }))
     setSelectedTaskId(nextId)
   }
@@ -164,7 +165,7 @@ function App() {
       setProject({ ...imported, data: imported.data.map(normalizeTask) })
       setImportError("")
     } catch {
-      setImportError("No se pudo importar. Verifica que el JSON sea compatible con OnlineGantt.")
+      setImportError(t("importError"))
     } finally {
       event.target.value = ""
     }
@@ -175,7 +176,7 @@ function App() {
     try {
       await navigator.clipboard.writeText(current)
     } catch {
-      window.prompt("Copia este enlace:", current)
+      window.prompt(t("sharePrompt"), current)
     }
   }
 
@@ -183,28 +184,28 @@ function App() {
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       {/* Toolbar */}
       <header className="flex shrink-0 items-center gap-1.5 border-b bg-card px-3 py-2 sm:gap-2 sm:px-4">
-        <span className="mr-1 text-sm font-semibold tracking-tight sm:mr-2">Gantt</span>
+        <span className="mr-1 text-sm font-semibold tracking-tight sm:mr-2">{t("appTitle")}</span>
         <Separator orientation="vertical" className="h-5" />
         <Button size="sm" onClick={handleNewTask}>
           <Plus />
-          <span className="hidden sm:inline">Nueva tarea</span>
+          <span className="hidden sm:inline">{t("newTask")}</span>
         </Button>
         <Button size="sm" variant="secondary" onClick={handleNewSubtask} disabled={!selectedTaskId}>
           <Plus />
-          <span className="hidden sm:inline">Subtarea</span>
+          <span className="hidden sm:inline">{t("subtask")}</span>
         </Button>
         <Separator orientation="vertical" className="h-5" />
         <Button size="sm" variant="outline" onClick={handleImportClick}>
           <Upload />
-          <span className="hidden sm:inline">Importar</span>
+          <span className="hidden sm:inline">{t("import")}</span>
         </Button>
         <Button size="sm" variant="outline" onClick={handleExport}>
           <Download />
-          <span className="hidden sm:inline">Exportar</span>
+          <span className="hidden sm:inline">{t("export")}</span>
         </Button>
         <Button size="sm" variant="outline" onClick={handleCopyShareLink}>
           <Link2 />
-          <span className="hidden sm:inline">Compartir</span>
+          <span className="hidden sm:inline">{t("share")}</span>
         </Button>
         <input ref={fileInputRef} type="file" accept=".gantt" className="hidden" onChange={handleImportFile} />
         {importError && <span className="text-xs text-destructive">{importError}</span>}
@@ -230,7 +231,7 @@ function App() {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <DrawerTitle className="truncate">
-                  Tarea
+                  {t("drawerTitle")}
                 </DrawerTitle>
               </div>
               <DrawerClose asChild>
@@ -245,7 +246,7 @@ function App() {
             <div className="flex-1 overflow-y-auto p-4">
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Nombre</label>
+                  <label className="text-xs font-medium text-muted-foreground">{t("labelName")}</label>
                   <Input
                     value={selectedTask.TaskName}
                     onChange={(e) => updateSelectedTask((t) => ({ ...t, TaskName: e.target.value }))}
@@ -254,7 +255,7 @@ function App() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">Inicio</label>
+                    <label className="text-xs font-medium text-muted-foreground">{t("labelStart")}</label>
                     <Input
                       type="date"
                       value={toDateInput(selectedTask.StartDate)}
@@ -264,7 +265,7 @@ function App() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">Fin</label>
+                    <label className="text-xs font-medium text-muted-foreground">{t("labelEnd")}</label>
                     <Input
                       type="date"
                       value={toDateInput(selectedTask.EndDate)}
@@ -277,7 +278,7 @@ function App() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">
-                    Progreso — {selectedTask.Progress}%
+                    {t("labelProgress")} — {selectedTask.Progress}%
                   </label>
                   <input
                     type="range"
@@ -296,7 +297,7 @@ function App() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Duración (días)</label>
+                  <label className="text-xs font-medium text-muted-foreground">{t("labelDuration")}</label>
                   <Input
                     type="number"
                     min={0}
@@ -307,30 +308,30 @@ function App() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Predecesor</label>
+                  <label className="text-xs font-medium text-muted-foreground">{t("labelPredecessor")}</label>
                   <Input
                     value={selectedTask.Predecessor ?? ""}
                     onChange={(e) =>
                       updateSelectedTask((t) => ({ ...t, Predecessor: e.target.value }))
                     }
-                    placeholder="ej: 2FS"
+                    placeholder={t("placeholderPredecessor")}
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Notas</label>
+                  <label className="text-xs font-medium text-muted-foreground">{t("labelNotes")}</label>
                   <Textarea
                     value={selectedTask.info}
                     onChange={(e) => updateSelectedTask((t) => ({ ...t, info: e.target.value }))}
                     rows={5}
-                    placeholder="Notas (HTML)"
+                    placeholder={t("placeholderNotes")}
                   />
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
-              Selecciona una tarea para editar.
+              {t("selectTaskToEdit")}
             </div>
           )}
         </DrawerContent>

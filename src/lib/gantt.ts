@@ -1,4 +1,5 @@
 import type { FlatTask, GanttProject, GanttTask } from "../types/gantt"
+import { t } from "./i18n"
 
 const URL_PARAM = "g"
 const LOCAL_STORAGE_KEY = "gantt_session_v1"
@@ -10,7 +11,7 @@ export function createDefaultProject(): GanttProject {
     data: [
       {
         TaskID: 1,
-        TaskName: "Nuevo proyecto",
+        TaskName: t("defaultProjectName"),
         StartDate: "2026-04-20T06:00:00.000Z",
         EndDate: "2026-04-24T15:00:00.000Z",
         Duration: 5,
@@ -23,7 +24,7 @@ export function createDefaultProject(): GanttProject {
         subtasks: [
           {
             TaskID: 2,
-            TaskName: "Tarea base",
+            TaskName: t("defaultBaseTask"),
             StartDate: "2026-04-20T06:00:00.000Z",
             EndDate: "2026-04-22T15:00:00.000Z",
             Duration: 3,
@@ -81,7 +82,7 @@ export function projectFromImport(raw: string): GanttProject {
   const parsed = JSON.parse(raw)
 
   if (!parsed || !Array.isArray(parsed.data) || !Array.isArray(parsed.resources) || !parsed.advanced) {
-    throw new Error("Formato JSON incompatible con OnlineGantt")
+    throw new Error(t("importFormatError"))
   }
 
   return parsed as GanttProject

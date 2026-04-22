@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 
 import { DAY_MS, buildTimelineDays, dayOffset, flattenTasks } from "../lib/gantt"
+import { t } from "../lib/i18n"
 import type { GanttProject } from "../types/gantt"
 import { GanttBar } from "./GanttBar"
 import {
@@ -78,7 +79,7 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
   if (!timelineStart || !flatTasks.length) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
-        No hay tareas para mostrar.
+        {t("noTasksToShow")}
       </div>
     )
   }
@@ -94,7 +95,7 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
       >
         {/* Header row */}
         <div className="sticky left-0 z-20 border-b bg-card p-2 text-xs font-medium">
-          Tarea
+          {t("taskColumnHeader")}
         </div>
         {timelineDays.map((day) => {
           const isMonday = day.getUTCDay() === 1
@@ -108,7 +109,7 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
             >
               {viewportWidth < 640
                 ? day.getUTCDate()
-                : new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "2-digit" }).format(day)}
+                : new Intl.DateTimeFormat(t("dateLocale"), { day: "2-digit", month: "2-digit" }).format(day)}
             </div>
           )
         })}
@@ -139,7 +140,7 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
                     variant="destructive"
                     onSelect={() => onDelete(task.TaskID)}
                   >
-                    Borrar tarea
+                    {t("deleteTask")}
                   </ContextMenuItem>
                 </ContextMenuContent>
               </ContextMenu>
@@ -177,7 +178,7 @@ export function GanttTimeline({ project, selectedTaskId, onSelect, onOpenDetail,
                   <div
                     className="absolute top-1/2 -translate-y-1/2 size-4 rotate-45 rounded-sm bg-amber-500"
                     style={{ left: `${left * dayWidth + dayWidth / 2 - 8}px` }}
-                    title={`${task.TaskName} (Hito)`}
+                    title={`${task.TaskName} (${t("milestone")})`}
                   />
                 ) : (
                   <GanttBar

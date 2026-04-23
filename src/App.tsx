@@ -85,14 +85,12 @@ function App() {
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState("")
-  const [shareCopied, setShareCopied] = useState(false)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [toastError, setToastError] = useState("")
   const [importError, setImportError] = useState("")
   const [projectName, setProjectName] = useState(project.name ?? "")
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const nameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const shareTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dragCounterRef = useRef(0)
 
@@ -128,7 +126,6 @@ function App() {
 
   useEffect(() => {
     return () => {
-      if (shareTimerRef.current) clearTimeout(shareTimerRef.current)
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     }
   }, [])
@@ -237,17 +234,20 @@ function App() {
     event.target.value = ""
   }
 
-  const handleCopyShareLink = async () => {
-    const current = shareUrl || saveProjectToUrl(project)
-    try {
-      await navigator.clipboard.writeText(current)
-      setShareCopied(true)
-      if (shareTimerRef.current) clearTimeout(shareTimerRef.current)
-      shareTimerRef.current = setTimeout(() => {
-        setShareCopied(false)
-      }, 3000)
-    } catch {
-      window.prompt(t("sharePrompt"), current)
+  const handleShare = async () => {
+    const url = shareUrl || saveProjectToUrl(project)
+    if (navigator.share) {
+      try {
+        await navigator.share({ url, title: project.name })
+      } catch {
+        // user cancelled — do nothing
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url)
+      } catch {
+        window.prompt(t("sharePrompt"), url)
+      }
     }
   }
 
@@ -333,11 +333,11 @@ function App() {
           <Button
             size="sm"
             variant="default"
-            onClick={handleCopyShareLink}
+            onClick={handleShare}
             className="border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600"
           >
             <Link2 />
-            <span className="hidden sm:inline">{shareCopied ? t("shareCopied") : t("share")}</span>
+            <span className="hidden sm:inline">{t("share")}</span>
           </Button>
         </div>
         <input ref={fileInputRef} type="file" accept=".gantt" className="hidden" onChange={handleImportFile} />

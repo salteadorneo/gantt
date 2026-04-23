@@ -81,27 +81,28 @@ export function GanttTimeline({
     document.body.style.cursor = "grabbing"
     document.body.style.userSelect = "none"
 
-    const onMouseMove = (e: MouseEvent) => {
-      let dragOverId: number | null = null
-      let dropPosition: "before" | "after" = "after"
-
+    const getDropTarget = (clientY: number): { dragOverId: number | null; dropPosition: "before" | "after" } => {
       for (const [id, el] of rowRefs.current) {
         const rect = el.getBoundingClientRect()
-        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
-          dragOverId = id
-          dropPosition = e.clientY < rect.top + rect.height / 2 ? "before" : "after"
-          break
+        if (clientY >= rect.top && clientY <= rect.bottom) {
+          return {
+            dragOverId: id,
+            dropPosition: clientY < rect.top + rect.height / 2 ? "before" : "after",
+          }
         }
       }
+      return { dragOverId: null, dropPosition: "after" }
+    }
 
-      // Update ref synchronously so onMouseUp reads latest values
+    const applyMove = (clientY: number) => {
+      const { dragOverId, dropPosition } = getDropTarget(clientY)
       if (dragRef.current) {
         dragRef.current = { ...dragRef.current, dragOverId, dropPosition }
       }
       setDragState((prev) => (prev ? { ...prev, dragOverId, dropPosition } : null))
     }
 
-    const onMouseUp = () => {
+    const commitDrop = () => {
       document.body.style.cursor = ""
       document.body.style.userSelect = ""
       const state = dragRef.current
@@ -112,13 +113,25 @@ export function GanttTimeline({
       dragRef.current = null
     }
 
+    const onMouseMove = (e: MouseEvent) => applyMove(e.clientY)
+    const onMouseUp = () => commitDrop()
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault()
+      applyMove(e.touches[0].clientY)
+    }
+    const onTouchEnd = () => commitDrop()
+
     document.addEventListener("mousemove", onMouseMove)
     document.addEventListener("mouseup", onMouseUp)
+    document.addEventListener("touchmove", onTouchMove, { passive: false })
+    document.addEventListener("touchend", onTouchEnd)
     return () => {
       document.body.style.cursor = ""
       document.body.style.userSelect = ""
       document.removeEventListener("mousemove", onMouseMove)
       document.removeEventListener("mouseup", onMouseUp)
+      document.removeEventListener("touchmove", onTouchMove)
+      document.removeEventListener("touchend", onTouchEnd)
     }
   }, [dragState?.draggedId, onReorder])
 
@@ -128,24 +141,25 @@ export function GanttTimeline({
     if (!baseTimelineDays.length) return []
 
     const visibleTimelineWidth = Math.max(0, viewportWidth - LABEL_WIDTH)
-    const minVisibleDays = Math.max(1, Math.floor(visibleTimelineWidth / dayWidth))
-    if (baseTimelineDays.length >= minVisibleDays) return baseTimelineDays
+    const halfRange = Math.max(10, Math.floor(Math.floor(visibleTimelineWidth / dayWidth) / 2))
 
-    const missingDays = minVisibleDays - baseTimelineDays.length
-    const prependDays = Math.floor(missingDays / 2)
-    const appendDays = missingDays - prependDays
-    const firstDayMs = baseTimelineDays[0].getTime()
-    const lastDayMs = baseTimelineDays[baseTimelineDays.length - 1].getTime()
-    const extraDaysBefore = Array.from(
-      { length: prependDays },
-      (_, i) => new Date(firstDayMs - (prependDays - i) * DAY_MS),
-    )
-    const extraDaysAfter = Array.from(
-      { length: appendDays },
-      (_, i) => new Date(lastDayMs + (i + 1) * DAY_MS),
-    )
+    // Anchor to today so the timeline doesn't shift when a task is moved
+    const today = new Date()
+    const todayMs = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+    const stableStartMs = todayMs - halfRange * DAY_MS
+    const stableEndMs = todayMs + halfRange * DAY_MS
 
-    return [...extraDaysBefore, ...baseTimelineDays, ...extraDaysAfter]
+    const firstTaskMs = baseTimelineDays[0].getTime()
+    const lastTaskMs = baseTimelineDays[baseTimelineDays.length - 1].getTime()
+
+    const startMs = Math.min(stableStartMs, firstTaskMs)
+    const endMs = Math.max(stableEndMs, lastTaskMs)
+
+    const days: Date[] = []
+    for (let ms = startMs; ms <= endMs; ms += DAY_MS) {
+      days.push(new Date(ms))
+    }
+    return days
   }, [project, dayWidth, viewportWidth])
   const timelineStart = timelineDays[0]
 
@@ -236,10 +250,16 @@ export function GanttTimeline({
 
                 {/* grip handle */}
                 <div
-                  className="shrink-0 flex items-center text-muted-foreground/30 hover:text-muted-foreground/70 cursor-grab"
+                  className="flex shrink-0 items-center text-muted-foreground/30 hover:text-muted-foreground/70 cursor-grab"
                   onMouseDown={(e) => {
                     e.stopPropagation()
                     e.preventDefault()
+                    const state: DragState = { draggedId: task.TaskID, dragOverId: null, dropPosition: "after" }
+                    dragRef.current = state
+                    setDragState(state)
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation()
                     const state: DragState = { draggedId: task.TaskID, dragOverId: null, dropPosition: "after" }
                     dragRef.current = state
                     setDragState(state)
@@ -250,7 +270,7 @@ export function GanttTimeline({
 
                 <span className="truncate">{task.TaskName}</span>
 
-                <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
                   <button
                     type="button"
                     aria-label={t("subtask")}

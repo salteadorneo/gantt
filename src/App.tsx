@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Download, Link2, Upload, X } from "lucide-react"
+import { version } from "../package.json"
 import { Button } from "./components/ui/button"
 import {
   Drawer,
@@ -361,6 +362,10 @@ function App() {
       </main>
 
       {/* Drawer de detalles */}
+      <span className="pointer-events-none fixed bottom-2 right-3 z-40 text-[10px] text-muted-foreground/50 select-none">
+        v{version}
+      </span>
+
       <Drawer direction={isMobile ? "bottom" : "right"} open={drawerOpen} onOpenChange={setDrawerOpen}>
         <DrawerContent>
           <DrawerHeader className="border-b">

@@ -249,7 +249,6 @@ export function saveProjectToUrl(project: GanttProject): string {
   const encoded = encodeBase64Url(json)
   const url = new URL(window.location.href)
   url.searchParams.set(URL_PARAM, encoded)
-  window.history.replaceState({}, "", url)
   return url.toString()
 }
 

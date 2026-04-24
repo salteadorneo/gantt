@@ -8,6 +8,7 @@ interface Props {
   timelineStart: Date
   dayWidth: number
   selected: boolean
+  readOnly?: boolean
   onSelect: (id: number) => void
   onCommit: (updater: (project: GanttProject) => GanttProject) => void
 }
@@ -24,7 +25,7 @@ interface DragState {
   initialWidth: number
 }
 
-export function GanttBar({ task, timelineStart, dayWidth, selected, onSelect, onCommit }: Props) {
+export function GanttBar({ task, timelineStart, dayWidth, selected, readOnly = false, onSelect, onCommit }: Props) {
   const dragRef = useRef<DragState | null>(null)
   const barRef = useRef<HTMLDivElement | null>(null)
 
@@ -149,7 +150,9 @@ export function GanttBar({ task, timelineStart, dayWidth, selected, onSelect, on
   return (
     <div
       ref={barRef}
-      className={`absolute top-2 h-6 rounded-md cursor-grab select-none overflow-hidden transition-shadow ${
+      className={`absolute top-2 h-6 rounded-md select-none overflow-hidden transition-shadow ${
+        readOnly ? "cursor-default" : "cursor-grab"
+      } ${
         selected
           ? "ring-2 ring-ring ring-offset-1 bg-primary/75"
           : "bg-primary/70 hover:bg-primary/80"
@@ -157,11 +160,13 @@ export function GanttBar({ task, timelineStart, dayWidth, selected, onSelect, on
       style={{ left: `${leftPx}px`, width: `${widthPx}px` }}
       onMouseDown={(e) => {
         onSelect(task.TaskID)
+        if (readOnly) return
         startDrag(e, "move")
         e.stopPropagation()
       }}
       onTouchStart={(e) => {
         onSelect(task.TaskID)
+        if (readOnly) return
         startTouchDrag(e, "move")
       }}
       title={`${task.TaskName} — ${task.Duration}d (${task.Progress}%)`}
@@ -180,30 +185,34 @@ export function GanttBar({ task, timelineStart, dayWidth, selected, onSelect, on
       )}
 
       {/* resize handle left */}
-      <div
-        className="absolute left-0 top-0 h-full w-3 cursor-ew-resize hover:bg-white/30 rounded-l-md"
-        onMouseDown={(e) => {
-          onSelect(task.TaskID)
-          startDrag(e, "resize-left")
-        }}
-        onTouchStart={(e) => {
-          onSelect(task.TaskID)
-          startTouchDrag(e, "resize-left")
-        }}
-      />
+      {!readOnly && (
+        <div
+          className="absolute left-0 top-0 h-full w-3 cursor-ew-resize hover:bg-white/30 rounded-l-md"
+          onMouseDown={(e) => {
+            onSelect(task.TaskID)
+            startDrag(e, "resize-left")
+          }}
+          onTouchStart={(e) => {
+            onSelect(task.TaskID)
+            startTouchDrag(e, "resize-left")
+          }}
+        />
+      )}
 
       {/* resize handle right */}
-      <div
-        className="absolute right-0 top-0 h-full w-3 cursor-ew-resize hover:bg-white/30 rounded-r-md"
-        onMouseDown={(e) => {
-          onSelect(task.TaskID)
-          startDrag(e, "resize")
-        }}
-        onTouchStart={(e) => {
-          onSelect(task.TaskID)
-          startTouchDrag(e, "resize")
-        }}
-      />
+      {!readOnly && (
+        <div
+          className="absolute right-0 top-0 h-full w-3 cursor-ew-resize hover:bg-white/30 rounded-r-md"
+          onMouseDown={(e) => {
+            onSelect(task.TaskID)
+            startDrag(e, "resize")
+          }}
+          onTouchStart={(e) => {
+            onSelect(task.TaskID)
+            startTouchDrag(e, "resize")
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -25,6 +25,7 @@ interface DragState {
 
 interface Props {
   project: GanttProject
+  readOnly?: boolean
   selectedTaskId: number | null
   onSelect: (id: number) => void
   onOpenDetail: (id: number) => void
@@ -38,6 +39,7 @@ interface Props {
 
 export function GanttTimeline({
   project,
+  readOnly = false,
   selectedTaskId,
   onSelect,
   onOpenDetail,
@@ -76,6 +78,7 @@ export function GanttTimeline({
 
   // Global drag listeners — only attached while dragging
   useEffect(() => {
+    if (readOnly) return
     if (!dragState) return
 
     document.body.style.cursor = "grabbing"
@@ -133,7 +136,7 @@ export function GanttTimeline({
       document.removeEventListener("touchmove", onTouchMove)
       document.removeEventListener("touchend", onTouchEnd)
     }
-  }, [dragState?.draggedId, onReorder])
+  }, [dragState?.draggedId, onReorder, readOnly])
 
   const flatTasks = flattenTasks(project.data)
   const timelineDays = useMemo(() => {
@@ -167,14 +170,16 @@ export function GanttTimeline({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-sm text-muted-foreground">
         <span>{t("noTasksToShow")}</span>
-        <button
-          type="button"
-          onClick={onCreateTask}
-          className="inline-flex items-center gap-1 rounded-sm border px-3 py-1.5 text-sm text-foreground hover:bg-muted/60"
-        >
-          <Plus size={14} />
-          <span>{t("emptyCreateFirstTask")}</span>
-        </button>
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={onCreateTask}
+            className="inline-flex items-center gap-1 rounded-sm border px-3 py-1.5 text-sm text-foreground hover:bg-muted/60"
+          >
+            <Plus size={14} />
+            <span>{t("emptyCreateFirstTask")}</span>
+          </button>
+        )}
       </div>
     )
   }
@@ -249,76 +254,80 @@ export function GanttTimeline({
                 )}
 
                 {/* grip handle */}
-                <div
-                  className="flex shrink-0 items-center text-muted-foreground/30 hover:text-muted-foreground/70 cursor-grab"
-                  onMouseDown={(e) => {
-                    e.stopPropagation()
-                    e.preventDefault()
-                    const state: DragState = { draggedId: task.TaskID, dragOverId: null, dropPosition: "after" }
-                    dragRef.current = state
-                    setDragState(state)
-                  }}
-                  onTouchStart={(e) => {
-                    e.stopPropagation()
-                    const state: DragState = { draggedId: task.TaskID, dragOverId: null, dropPosition: "after" }
-                    dragRef.current = state
-                    setDragState(state)
-                  }}
-                >
-                  <GripVertical size={13} />
-                </div>
-
-                <span className="truncate">{task.TaskName}</span>
-
-                <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
-                  <button
-                    type="button"
-                    aria-label={t("subtask")}
-                    title={t("subtask")}
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                {!readOnly && (
+                  <div
+                    className="flex shrink-0 items-center text-muted-foreground/30 hover:text-muted-foreground/70 cursor-grab"
                     onMouseDown={(e) => {
                       e.stopPropagation()
                       e.preventDefault()
+                      const state: DragState = { draggedId: task.TaskID, dragOverId: null, dropPosition: "after" }
+                      dragRef.current = state
+                      setDragState(state)
                     }}
-                    onClick={(e) => {
+                    onTouchStart={(e) => {
                       e.stopPropagation()
-                      onCreateSubtask(task.TaskID)
+                      const state: DragState = { draggedId: task.TaskID, dragOverId: null, dropPosition: "after" }
+                      dragRef.current = state
+                      setDragState(state)
                     }}
                   >
-                    <Plus size={14} />
-                  </button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label={t("deleteTask")}
-                        title={t("deleteTask")}
-                        className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-                        onMouseDown={(e) => {
-                          e.stopPropagation()
-                          e.preventDefault()
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <X size={14} />
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t("confirmDeleteTitle")}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {t("confirmDeleteDescription")}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDelete(task.TaskID)}>
-                          {t("confirm")}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
+                    <GripVertical size={13} />
+                  </div>
+                )}
+
+                <span className="truncate">{task.TaskName}</span>
+
+                {!readOnly && (
+                  <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
+                    <button
+                      type="button"
+                      aria-label={t("subtask")}
+                      title={t("subtask")}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                      onMouseDown={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onCreateSubtask(task.TaskID)
+                      }}
+                    >
+                      <Plus size={14} />
+                    </button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={t("deleteTask")}
+                          title={t("deleteTask")}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
+                          onMouseDown={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <X size={14} />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{t("confirmDeleteTitle")}</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {t("confirmDeleteDescription")}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => onDelete(task.TaskID)}>
+                            {t("confirm")}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
               </div>
 
               {/* bar cell */}
@@ -371,6 +380,7 @@ export function GanttTimeline({
                       timelineStart={timelineStart}
                       dayWidth={dayWidth}
                       selected={selectedTaskId === task.TaskID}
+                      readOnly={readOnly}
                       onSelect={onSelect}
                       onCommit={onCommit}
                     />
@@ -382,20 +392,22 @@ export function GanttTimeline({
         })}
 
         {/* Add task row */}
-        <div className="contents">
-          <button
-            type="button"
-            onClick={onCreateTask}
-            className="sticky left-0 z-10 flex h-10 min-w-0 items-center gap-1 border-b bg-card px-2 text-left text-sm text-muted-foreground hover:bg-muted/40"
-          >
-            <Plus size={13} className="shrink-0" />
-            <span>{t("newTask")}</span>
-          </button>
-          <div
-            className="h-10 border-b"
-            style={{ gridColumn: `2 / span ${timelineDays.length}` }}
-          />
-        </div>
+        {!readOnly && (
+          <div className="contents">
+            <button
+              type="button"
+              onClick={onCreateTask}
+              className="sticky left-0 z-10 flex h-10 min-w-0 items-center gap-1 border-b bg-card px-2 text-left text-sm text-muted-foreground hover:bg-muted/40"
+            >
+              <Plus size={13} className="shrink-0" />
+              <span>{t("newTask")}</span>
+            </button>
+            <div
+              className="h-10 border-b"
+              style={{ gridColumn: `2 / span ${timelineDays.length}` }}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

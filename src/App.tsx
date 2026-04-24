@@ -75,17 +75,17 @@ function normalizeExportFileName(value: string): string {
 function App() {
   const isMobile = useIsMobile()
   const DAY_WIDTH = isMobile ? 32 : 44
+  const sharedProject = useMemo(() => getProjectFromUrl(), [])
+  const isSharedReadOnly = sharedProject !== null
 
   const [project, setProject] = useState<GanttProject>(() => {
-    const fromUrl = getProjectFromUrl()
-    if (fromUrl) return fromUrl
+    if (sharedProject) return sharedProject
     const fromLocal = getProjectFromLocalStorage()
     if (fromLocal) return fromLocal
     return createDefaultProject()
   })
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [shareUrl, setShareUrl] = useState("")
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [toastError, setToastError] = useState("")
   const [importError, setImportError] = useState("")
@@ -96,6 +96,7 @@ function App() {
   const dragCounterRef = useRef(0)
 
   const handleNameChange = (value: string) => {
+    if (isSharedReadOnly) return
     setProjectName(value)
     if (nameTimerRef.current) clearTimeout(nameTimerRef.current)
     nameTimerRef.current = setTimeout(() => {
@@ -121,9 +122,9 @@ function App() {
   }, [flatTasks, selectedTaskId])
 
   useEffect(() => {
+    if (isSharedReadOnly) return
     saveProjectToLocalStorage(project)
-    setShareUrl(saveProjectToUrl(project))
-  }, [project])
+  }, [project, isSharedReadOnly])
 
   useEffect(() => {
     return () => {
@@ -140,6 +141,10 @@ function App() {
   }
 
   const importGanttFile = async (file: File): Promise<boolean> => {
+    if (isSharedReadOnly) {
+      showImportToastError(t("readOnlyView"))
+      return false
+    }
     const isValidExtension = file.name.toLowerCase().endsWith(".gantt")
     if (!isValidExtension) {
       showImportToastError(t("invalidGanttFile"))
@@ -160,10 +165,12 @@ function App() {
   }
 
   const handleCommit = (updater: (p: GanttProject) => GanttProject) => {
+    if (isSharedReadOnly) return
     setProject(updater)
   }
 
   const handleDelete = (id: number) => {
+    if (isSharedReadOnly) return
     setProject((current) => ({
       ...current,
       data: removeTaskFromTree(current.data, id),
@@ -175,6 +182,7 @@ function App() {
   }
 
   const updateSelectedTask = (updater: (task: GanttTask) => GanttTask) => {
+    if (isSharedReadOnly) return
     if (!selectedTaskId) return
     setProject((current) => ({
       ...current,
@@ -183,6 +191,7 @@ function App() {
   }
 
   const handleReorder = (draggedId: number, targetId: number, position: "before" | "after") => {
+    if (isSharedReadOnly) return
     setProject((current) => ({
       ...current,
       data: reorderTasksInTree(current.data, draggedId, targetId, position),
@@ -195,6 +204,7 @@ function App() {
   }
 
   const handleNewTask = () => {
+    if (isSharedReadOnly) return
     const nextId = getNextTaskId(project)
     const today = new Date().toISOString()
     const newTask = createTask(nextId, `${t("defaultTaskName")} ${nextId}`, today)
@@ -203,6 +213,7 @@ function App() {
   }
 
   const handleNewSubtaskFor = (parentId: number) => {
+    if (isSharedReadOnly) return
     const nextId = getNextTaskId(project)
     const parent = flatTasks.find((row) => row.task.TaskID === parentId)?.task
     const start = parent?.StartDate ?? new Date().toISOString()
@@ -236,7 +247,7 @@ function App() {
   }
 
   const handleShare = async () => {
-    const url = shareUrl || saveProjectToUrl(project)
+    const url = saveProjectToUrl(project)
     if (navigator.share) {
       try {
         await navigator.share({ url, title: project.name })
@@ -319,11 +330,17 @@ function App() {
             placeholder={t("appTitle")}
             onChange={(e) => handleNameChange(e.target.value)}
             onFocus={(e) => e.target.select()}
+            readOnly={isSharedReadOnly}
             className="absolute inset-0 w-full bg-transparent text-base sm:text-lg font-semibold tracking-tight rounded-sm px-1 border-0 outline-none shadow-none hover:bg-muted/50 focus:bg-accent/40 transition-colors cursor-default focus:cursor-text placeholder:text-foreground"
           />
         </div>
+        {isSharedReadOnly && (
+          <span className="text-xs rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-700">
+            {t("readOnlySharedView")}
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-          <Button size="sm" variant="outline" onClick={handleImportClick}>
+          <Button size="sm" variant="outline" onClick={handleImportClick} disabled={isSharedReadOnly}>
             <Upload />
             <span className="hidden sm:inline">{t("import")}</span>
           </Button>
@@ -349,6 +366,7 @@ function App() {
       <main className="min-h-0 flex-1 overflow-hidden">
         <GanttTimeline
           project={project}
+          readOnly={isSharedReadOnly}
           selectedTaskId={selectedTaskId}
           onSelect={setSelectedTaskId}
           onOpenDetail={handleSelect}
@@ -390,6 +408,7 @@ function App() {
                   <label className="text-xs font-medium text-muted-foreground">{t("labelName")}</label>
                   <Input
                     value={selectedTask.TaskName}
+                    disabled={isSharedReadOnly}
                     onChange={(e) => updateSelectedTask((t) => ({ ...t, TaskName: e.target.value }))}
                   />
                 </div>
@@ -400,6 +419,7 @@ function App() {
                     <Input
                       type="date"
                       value={toDateInput(selectedTask.StartDate)}
+                      disabled={isSharedReadOnly}
                       onChange={(e) =>
                         updateSelectedTask((t) => ({ ...t, StartDate: fromDateInput(e.target.value) }))
                       }
@@ -410,6 +430,7 @@ function App() {
                     <Input
                       type="date"
                       value={toDateInput(selectedTask.EndDate)}
+                      disabled={isSharedReadOnly}
                       onChange={(e) =>
                         updateSelectedTask((t) => ({ ...t, EndDate: fromDateInput(e.target.value) }))
                       }
@@ -426,6 +447,7 @@ function App() {
                     min={0}
                     max={100}
                     value={selectedTask.Progress}
+                    disabled={isSharedReadOnly}
                     onPointerDownCapture={(e) => e.stopPropagation()}
                     onMouseDownCapture={(e) => e.stopPropagation()}
                     onTouchStartCapture={(e) => e.stopPropagation()}
@@ -441,6 +463,7 @@ function App() {
                   <label className="text-xs font-medium text-muted-foreground">{t("labelNotes")}</label>
                   <Textarea
                     value={selectedTask.info}
+                    disabled={isSharedReadOnly}
                     onChange={(e) => updateSelectedTask((t) => ({ ...t, info: e.target.value }))}
                     rows={5}
                   />

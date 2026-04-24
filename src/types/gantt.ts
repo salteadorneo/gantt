@@ -43,6 +43,7 @@ export interface AdvancedSettings {
 
 export interface GanttProject {
   name?: string
+  lastModified?: string
   data: GanttTask[]
   resources: Resource[]
   projectStartDate: string | null

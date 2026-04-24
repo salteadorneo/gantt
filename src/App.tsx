@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Download, Link2, Upload, X } from "lucide-react"
+import { Download, Link2, Minus, Plus, Upload, X } from "lucide-react"
 import { version } from "../package.json"
 import { Button } from "./components/ui/button"
 import {
@@ -72,9 +72,17 @@ function normalizeExportFileName(value: string): string {
   return normalized || "gantt"
 }
 
+const MOBILE_ZOOM_DAY_WIDTHS = [24, 28, 32, 36, 40] as const
+const DESKTOP_ZOOM_DAY_WIDTHS = [28, 36, 44, 52, 60] as const
+
+function clampZoomLevel(value: number, maxLevel: number): number {
+  return Math.max(0, Math.min(maxLevel, value))
+}
+
 function App() {
   const isMobile = useIsMobile()
-  const DAY_WIDTH = isMobile ? 32 : 44
+  const zoomWidths = isMobile ? MOBILE_ZOOM_DAY_WIDTHS : DESKTOP_ZOOM_DAY_WIDTHS
+  const maxZoomLevel = zoomWidths.length - 1
   const sharedProject = useMemo(() => getProjectFromUrl(), [])
   const isSharedReadOnly = sharedProject !== null
 
@@ -90,6 +98,9 @@ function App() {
   const [toastError, setToastError] = useState("")
   const [importError, setImportError] = useState("")
   const [projectName, setProjectName] = useState(project.name ?? "")
+  const [zoomLevel, setZoomLevel] = useState(() =>
+    clampZoomLevel(project.advanced?.zoomLevel ?? 2, maxZoomLevel),
+  )
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const nameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -100,7 +111,7 @@ function App() {
     setProjectName(value)
     if (nameTimerRef.current) clearTimeout(nameTimerRef.current)
     nameTimerRef.current = setTimeout(() => {
-      setProject((p) => ({ ...p, name: value }))
+      setProject((p) => ({ ...p, name: value, lastModified: new Date().toISOString() }))
     }, 400)
   }
 
@@ -140,6 +151,25 @@ function App() {
     }, 3000)
   }
 
+  const dayWidth = zoomWidths[clampZoomLevel(zoomLevel, maxZoomLevel)]
+
+  const updateZoom = (nextLevel: number) => {
+    const safeLevel = clampZoomLevel(nextLevel, maxZoomLevel)
+    setZoomLevel(safeLevel)
+
+    if (isSharedReadOnly) return
+    setProject((current) => ({
+      ...current,
+      advanced: {
+        ...current.advanced,
+        zoomLevel: safeLevel,
+      },
+    }))
+  }
+
+  const zoomIn = () => updateZoom(zoomLevel + 1)
+  const zoomOut = () => updateZoom(zoomLevel - 1)
+
   const importGanttFile = async (file: File): Promise<boolean> => {
     if (isSharedReadOnly) {
       showImportToastError(t("readOnlyView"))
@@ -154,6 +184,7 @@ function App() {
     try {
       const raw = await file.text()
       const imported = projectFromImport(raw)
+      setZoomLevel(clampZoomLevel(imported.advanced?.zoomLevel ?? 2, maxZoomLevel))
       setProject({ ...imported, data: imported.data.map(normalizeTask) })
       setProjectName(imported.name ?? "")
       setImportError("")
@@ -166,7 +197,7 @@ function App() {
 
   const handleCommit = (updater: (p: GanttProject) => GanttProject) => {
     if (isSharedReadOnly) return
-    setProject(updater)
+    setProject((p) => ({ ...updater(p), lastModified: new Date().toISOString() }))
   }
 
   const handleDelete = (id: number) => {
@@ -174,6 +205,7 @@ function App() {
     setProject((current) => ({
       ...current,
       data: removeTaskFromTree(current.data, id),
+      lastModified: new Date().toISOString(),
     }))
     if (selectedTaskId === id) {
       setSelectedTaskId(null)
@@ -208,7 +240,7 @@ function App() {
     const nextId = getNextTaskId(project)
     const today = new Date().toISOString()
     const newTask = createTask(nextId, `${t("defaultTaskName")} ${nextId}`, today)
-    setProject((current) => ({ ...current, data: addSiblingTask(current.data, newTask) }))
+    setProject((current) => ({ ...current, data: addSiblingTask(current.data, newTask), lastModified: new Date().toISOString() }))
     setSelectedTaskId(nextId)
   }
 
@@ -218,7 +250,7 @@ function App() {
     const parent = flatTasks.find((row) => row.task.TaskID === parentId)?.task
     const start = parent?.StartDate ?? new Date().toISOString()
     const child = createTask(nextId, `${t("defaultSubtaskName")} ${nextId}`, start)
-    setProject((current) => ({ ...current, data: addSubtask(current.data, parentId, child) }))
+    setProject((current) => ({ ...current, data: addSubtask(current.data, parentId, child), lastModified: new Date().toISOString() }))
     setSelectedTaskId(nextId)
   }
 
@@ -247,7 +279,7 @@ function App() {
   }
 
   const handleShare = async () => {
-    const url = saveProjectToUrl(project)
+    const url = saveProjectToUrl({ ...project, lastModified: new Date().toISOString() })
     if (navigator.share) {
       try {
         await navigator.share({ url, title: project.name })
@@ -319,27 +351,73 @@ function App() {
       )}
 
       {/* Toolbar */}
-      <header className="flex shrink-0 items-center gap-1.5 border-b bg-card px-3 py-2 sm:gap-2 sm:px-4">
-        <div className="relative mr-1 sm:mr-2 shrink-0">
-          <span aria-hidden className="invisible block whitespace-pre text-base sm:text-lg font-semibold tracking-tight px-1 min-w-10">
-            {projectName || t("appTitle")}
+      <header className="flex shrink-0 items-center gap-2 border-b bg-card px-3 py-2 sm:gap-3 sm:px-4">
+        <div className="flex shrink-0 items-center gap-2">
+          <img src="/favicon.svg" alt={t("appTitle")} className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="text-sm font-semibold tracking-tight sm:text-base">{t("appTitle")}</span>
+        </div>
+        <div aria-hidden className="h-5 w-px shrink-0 bg-border/70 sm:h-6" />
+        <div className="relative min-w-10 shrink-0">
+          <span
+            aria-hidden
+            className="invisible block whitespace-pre px-1 text-sm font-semibold tracking-tight sm:text-base"
+          >
+            {projectName || t("untitledProject")}
           </span>
           <input
             type="text"
             value={projectName}
-            placeholder={t("appTitle")}
+            placeholder={t("untitledProject")}
             onChange={(e) => handleNameChange(e.target.value)}
             onFocus={(e) => e.target.select()}
             readOnly={isSharedReadOnly}
-            className="absolute inset-0 w-full bg-transparent text-base sm:text-lg font-semibold tracking-tight rounded-sm px-1 border-0 outline-none shadow-none hover:bg-muted/50 focus:bg-accent/40 transition-colors cursor-default focus:cursor-text placeholder:text-foreground"
+            className="absolute inset-0 w-full rounded-sm border-0 bg-transparent px-1 text-sm font-semibold tracking-tight outline-none shadow-none transition-colors placeholder:text-foreground/80 hover:bg-muted/50 focus:bg-accent/40 cursor-default focus:cursor-text sm:text-base"
           />
         </div>
+        {project.lastModified && (
+          <span className="hidden sm:inline text-xs text-muted-foreground/70 select-none shrink-0">
+            {t("lastUpdate")}
+            {" "}
+            {new Date(project.lastModified).toLocaleString(t("dateLocale"), {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+        )}
         {isSharedReadOnly && (
           <span className="text-xs rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-700">
             {t("readOnlySharedView")}
           </span>
         )}
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={zoomOut}
+              disabled={zoomLevel <= 0}
+              aria-label={t("zoomOut")}
+              title={t("zoomOut")}
+            >
+              <Minus />
+            </Button>
+            <span className="w-10 text-center text-xs text-muted-foreground">
+              {Math.round((dayWidth / 44) * 100)}%
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={zoomIn}
+              disabled={zoomLevel >= maxZoomLevel}
+              aria-label={t("zoomIn")}
+              title={t("zoomIn")}
+            >
+              <Plus />
+            </Button>
+          </div>
           <Button size="sm" variant="outline" onClick={handleImportClick} disabled={isSharedReadOnly}>
             <Upload />
             <span className="hidden sm:inline">{t("import")}</span>
@@ -375,7 +453,7 @@ function App() {
           onCommit={handleCommit}
           onDelete={handleDelete}
           onReorder={handleReorder}
-          dayWidth={DAY_WIDTH}
+          dayWidth={dayWidth}
         />
       </main>
 

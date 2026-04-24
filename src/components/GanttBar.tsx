@@ -31,8 +31,8 @@ export function GanttBar({ task, timelineStart, dayWidth, selected, readOnly = f
 
   const leftDays = dayOffset(timelineStart, task.StartDate)
   const widthDays = Math.max(1, task.Duration)
-  const leftPx = leftDays * dayWidth + 2
-  const widthPx = widthDays * dayWidth - 4
+  const leftPx = leftDays * dayWidth
+  const widthPx = widthDays * dayWidth
 
   const commitDrag = (daysDelta: number, type: DragType) => {
     if (daysDelta === 0) return
@@ -89,11 +89,13 @@ export function GanttBar({ task, timelineStart, dayWidth, selected, readOnly = f
     const dx = clientX - drag.startX
     const daysDelta = Math.round(dx / dayWidth)
     if (drag.type === "move") {
-      drag.barEl.style.left = `${Math.max(2, drag.initialLeft + daysDelta * dayWidth)}px`
+      drag.barEl.style.left = `${Math.max(0, drag.initialLeft + daysDelta * dayWidth)}px`
     } else if (drag.type === "resize") {
-      drag.barEl.style.width = `${Math.max(dayWidth - 4, drag.initialWidth + daysDelta * dayWidth)}px`
+      const newWidth = Math.max(dayWidth, drag.initialWidth + daysDelta * dayWidth)
+      drag.barEl.style.width = `${newWidth}px`
     } else {
-      const clampedDelta = Math.min(daysDelta, Math.floor((drag.initialWidth - (dayWidth - 4)) / dayWidth))
+      const maxResizeLeft = Math.floor((drag.initialWidth - dayWidth) / dayWidth)
+      const clampedDelta = Math.min(daysDelta, maxResizeLeft)
       drag.barEl.style.left = `${drag.initialLeft + clampedDelta * dayWidth}px`
       drag.barEl.style.width = `${drag.initialWidth - clampedDelta * dayWidth}px`
     }

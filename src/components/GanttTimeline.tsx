@@ -143,25 +143,28 @@ export function GanttTimeline({
     const baseTimelineDays = buildTimelineDays(project)
     if (!baseTimelineDays.length) return []
 
-    const visibleTimelineWidth = Math.max(0, viewportWidth - LABEL_WIDTH)
-    const halfRange = Math.max(10, Math.floor(Math.floor(visibleTimelineWidth / dayWidth) / 2))
-
-    // Anchor to today so the timeline doesn't shift when a task is moved
-    const today = new Date()
-    const todayMs = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
-    const stableStartMs = todayMs - halfRange * DAY_MS
-    const stableEndMs = todayMs + halfRange * DAY_MS
-
+    // Use exact range from first to last task
     const firstTaskMs = baseTimelineDays[0].getTime()
     const lastTaskMs = baseTimelineDays[baseTimelineDays.length - 1].getTime()
 
-    const startMs = Math.min(stableStartMs, firstTaskMs)
-    const endMs = Math.max(stableEndMs, lastTaskMs)
-
     const days: Date[] = []
-    for (let ms = startMs; ms <= endMs; ms += DAY_MS) {
+    for (let ms = firstTaskMs; ms <= lastTaskMs; ms += DAY_MS) {
       days.push(new Date(ms))
     }
+
+    // Fill remaining space if needed when zoomed out
+    const visibleTimelineWidth = Math.max(0, viewportWidth - LABEL_WIDTH)
+    const requiredDays = Math.ceil(visibleTimelineWidth / dayWidth)
+    
+    if (days.length < requiredDays) {
+      const daysToAdd = requiredDays - days.length
+      let ms = lastTaskMs + DAY_MS
+      for (let i = 0; i < daysToAdd; i++) {
+        days.push(new Date(ms))
+        ms += DAY_MS
+      }
+    }
+
     return days
   }, [project, dayWidth, viewportWidth])
   const timelineStart = timelineDays[0]
